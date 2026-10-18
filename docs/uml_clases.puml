@@ -1,0 +1,104 @@
+@startuml AvilaOS_DiagramaClases
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "modelo" {
+  enum EstadoProceso {
+    NUEVO
+    LISTO
+    EJECUCION
+    BLOQUEADO
+    TERMINADO
+  }
+
+  enum ModoCPU {
+    USUARIO
+    SISTEMA_OPERATIVO
+  }
+
+  enum TipoProceso {
+    CPU_BOUND
+    IO_BOUND
+    PRODUCTOR
+    CONSUMIDOR
+  }
+
+  enum PoliticaPlanificacion {
+    FCFS
+    EDF
+    ROUND_ROBIN
+    PRIORIDADES
+  }
+
+  class Proceso {
+    - id : int
+    - nombre : String
+    - computadorId : int
+    - estado : EstadoProceso
+    - tipo : TipoProceso
+    - prioridad : int
+    - memoriaRequerida : int
+    - deadline : int
+    - tiempoRestante : int
+    - pc : int
+    + getEtiqueta() : String
+    + decrementarDeadline() : boolean
+    + ejecutarUnCiclo() : void
+  }
+}
+
+package "contratos" {
+  interface Ciclico {
+    + onTick(cicloGlobal : int) : void
+  }
+
+  interface PoliticaPlanificacionStrategy {
+    + seleccionar(listos : Cola) : Proceso
+    + alLlegar(proceso : Proceso, listos : Cola) : void
+  }
+}
+
+package "estructuras" {
+  class Nodo
+  class ListaEnlazada
+  class Cola
+  class Pila
+}
+
+package "nucleo" {
+  class Computador {
+    - id : int
+    - ramTotal : int
+    - ramUsada : int
+    - modoCPU : ModoCPU
+    - quantum : int
+    - procesoEnCPU : Proceso
+    - politica : PoliticaPlanificacionStrategy
+    + admitirProceso(p : Proceso) : void
+    + liberarMemoria(p : Proceso) : void
+    + setPolitica(p : PoliticaPlanificacionStrategy) : void
+    + onTick(cicloGlobal : int) : void
+  }
+
+  class FCFS
+  class EDF
+  class RoundRobin
+  class PrioridadesApropiativas
+}
+
+Proceso --> EstadoProceso
+Proceso --> TipoProceso
+Computador --> ModoCPU
+Computador --> Proceso
+Computador ..|> Ciclico
+Computador --> PoliticaPlanificacionStrategy
+PoliticaPlanificacionStrategy <|.. FCFS
+PoliticaPlanificacionStrategy <|.. EDF
+PoliticaPlanificacionStrategy <|.. RoundRobin
+PoliticaPlanificacionStrategy <|.. PrioridadesApropiativas
+Cola *-- ListaEnlazada
+Pila *-- ListaEnlazada
+ListaEnlazada *-- Nodo
+
+@enduml
