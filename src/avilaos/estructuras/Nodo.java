@@ -1,8 +1,5 @@
 package avilaos.estructuras;
 
-/**
- * Nodo genérico para lista enlazada, cola y pila.
- */
 public class Nodo<T> {
 
     private T dato;

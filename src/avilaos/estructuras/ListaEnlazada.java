@@ -1,36 +1,37 @@
 package avilaos.estructuras;
 
-/**
- * Lista enlazada simple genérica (sin usar colecciones de Java).
- */
 public class ListaEnlazada<T> {
 
     private Nodo<T> cabeza;
+    private Nodo<T> cola;
     private int tamanio;
 
     public ListaEnlazada() {
         this.cabeza = null;
+        this.cola = null;
         this.tamanio = 0;
     }
 
     public boolean estaVacia() {
-        return cabeza == null;
+        return tamanio == 0;
     }
 
     public int getTamanio() {
         return tamanio;
     }
 
+    public Nodo<T> getCabeza() {
+        return cabeza;
+    }
+
     public void agregarAlFinal(T dato) {
         Nodo<T> nuevo = new Nodo<>(dato);
         if (estaVacia()) {
             cabeza = nuevo;
+            cola = nuevo;
         } else {
-            Nodo<T> actual = cabeza;
-            while (actual.getSiguiente() != null) {
-                actual = actual.getSiguiente();
-            }
-            actual.setSiguiente(nuevo);
+            cola.setSiguiente(nuevo);
+            cola = nuevo;
         }
         tamanio++;
     }
@@ -39,6 +40,9 @@ public class ListaEnlazada<T> {
         Nodo<T> nuevo = new Nodo<>(dato);
         nuevo.setSiguiente(cabeza);
         cabeza = nuevo;
+        if (cola == null) {
+            cola = nuevo;
+        }
         tamanio++;
     }
 
@@ -48,6 +52,9 @@ public class ListaEnlazada<T> {
         }
         T dato = cabeza.getDato();
         cabeza = cabeza.getSiguiente();
+        if (cabeza == null) {
+            cola = null;
+        }
         tamanio--;
         return dato;
     }
@@ -56,15 +63,20 @@ public class ListaEnlazada<T> {
         if (estaVacia()) {
             return false;
         }
-        if (cabeza.getDato().equals(dato)) {
-            cabeza = cabeza.getSiguiente();
-            tamanio--;
+
+        if (mismoDato(cabeza.getDato(), dato)) {
+            eliminarAlInicio();
             return true;
         }
+
         Nodo<T> actual = cabeza;
         while (actual.getSiguiente() != null) {
-            if (actual.getSiguiente().getDato().equals(dato)) {
-                actual.setSiguiente(actual.getSiguiente().getSiguiente());
+            if (mismoDato(actual.getSiguiente().getDato(), dato)) {
+                Nodo<T> eliminado = actual.getSiguiente();
+                actual.setSiguiente(eliminado.getSiguiente());
+                if (eliminado == cola) {
+                    cola = actual;
+                }
                 tamanio--;
                 return true;
             }
@@ -76,7 +88,7 @@ public class ListaEnlazada<T> {
     public boolean contiene(T dato) {
         Nodo<T> actual = cabeza;
         while (actual != null) {
-            if (actual.getDato().equals(dato)) {
+            if (mismoDato(actual.getDato(), dato)) {
                 return true;
             }
             actual = actual.getSiguiente();
@@ -95,12 +107,18 @@ public class ListaEnlazada<T> {
         return actual.getDato();
     }
 
-    public Nodo<T> getCabeza() {
-        return cabeza;
+    private boolean mismoDato(T a, T b) {
+        if (a == null) {
+            return b == null;
+        }
+        return a.equals(b);
     }
 
     @Override
     public String toString() {
+        if (estaVacia()) {
+            return "[]";
+        }
         StringBuilder sb = new StringBuilder("[");
         Nodo<T> actual = cabeza;
         while (actual != null) {

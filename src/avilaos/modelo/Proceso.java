@@ -1,9 +1,5 @@
 package avilaos.modelo;
 
-/**
- * Bloque de control del proceso (PCB).
- * Modelo monohilo: un proceso = un hilo de ejecución.
- */
 public class Proceso {
 
     private static int contadorGlobal = 0;
@@ -21,8 +17,15 @@ public class Proceso {
 
     public Proceso(String nombre, TipoProceso tipo, int prioridad,
                    int memoriaRequerida, int deadline, int tiempoRestante) {
+        if (nombre == null || nombre.isBlank()) {
+            throw new IllegalArgumentException("El nombre del proceso no puede estar vacío.");
+        }
+        if (memoriaRequerida < 0 || deadline < 0 || tiempoRestante < 0) {
+            throw new IllegalArgumentException("Memoria, deadline y tiempo restante no pueden ser negativos.");
+        }
+
         this.id = ++contadorGlobal;
-        this.nombre = nombre;
+        this.nombre = nombre.trim();
         this.computadorId = -1;
         this.estado = EstadoProceso.NUEVO;
         this.tipo = tipo;
@@ -109,7 +112,10 @@ public class Proceso {
         this.pc = pc;
     }
 
-    /** Baja el deadline en 1. Si llega a 0 o menos, el proceso termina. */
+    public String getEtiqueta() {
+        return "P" + id + "-" + nombre;
+    }
+
     public boolean decrementarDeadline() {
         if (deadline > 0) {
             deadline--;
@@ -121,7 +127,6 @@ public class Proceso {
         return false;
     }
 
-    /** Baja el tiempo restante en 1 e incrementa el PC. */
     public void ejecutarUnCiclo() {
         if (tiempoRestante > 0) {
             tiempoRestante--;
@@ -132,16 +137,37 @@ public class Proceso {
         }
     }
 
+    public boolean estaTerminado() {
+        return estado == EstadoProceso.TERMINADO;
+    }
+
     public static void reiniciarContadorGlobal() {
         contadorGlobal = 0;
     }
 
     @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof Proceso otro)) {
+            return false;
+        }
+        return this.id == otro.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(id);
+    }
+
+    @Override
     public String toString() {
-        return "P" + id + "-" + nombre
+        return getEtiqueta()
                 + " [" + estado
                 + ", pri=" + prioridad
                 + ", dl=" + deadline
-                + ", rest=" + tiempoRestante + "]";
+                + ", rest=" + tiempoRestante
+                + ", pc=" + pc + "]";
     }
 }

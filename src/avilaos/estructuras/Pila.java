@@ -1,28 +1,18 @@
 package avilaos.estructuras;
 
-/**
- * Pila LIFO genérica basada en lista enlazada propia.
- */
 public class Pila<T> {
 
-    private final ListaEnlazada<T> lista;
+    private final ListaEnlazada<T> lista = new ListaEnlazada<>();
 
-    public Pila() {
-        this.lista = new ListaEnlazada<>();
-    }
-
-    public void push(T dato) {
+    public void apilar(T dato) {
         lista.agregarAlInicio(dato);
     }
 
-    public T pop() {
+    public T desapilar() {
         return lista.eliminarAlInicio();
     }
 
-    public T peek() {
-        if (lista.estaVacia()) {
-            return null;
-        }
+    public T cima() {
         return lista.obtener(0);
     }
 
