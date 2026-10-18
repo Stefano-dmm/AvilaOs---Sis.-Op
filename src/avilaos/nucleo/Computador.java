@@ -234,6 +234,39 @@ public class Computador implements Ciclico {
 
     @Override
     public void onTick(int cicloGlobal) {
+        if (procesoEnCPU == null) {
+            despacharSiguiente();
+        }
+
+        if (procesoEnCPU == null) {
+            modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+            return;
+        }
+
+        modoCPU = ModoCPU.USUARIO;
+        procesoEnCPU.ejecutarUnCiclo();
+        boolean porDeadline = procesoEnCPU.decrementarDeadline();
+
+        if (porDeadline || procesoEnCPU.estaTerminado()) {
+            terminarProceso(procesoEnCPU);
+            despacharSiguiente();
+        }
+    }
+
+    private void despacharSiguiente() {
+        if (politica == null) {
+            return;
+        }
+        Proceso siguiente = politica.seleccionar(colaListos);
+        if (siguiente == null) {
+            procesoEnCPU = null;
+            modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+            return;
+        }
+        siguiente.setEstado(EstadoProceso.EJECUCION);
+        procesoEnCPU = siguiente;
+        quantumRestante = quantum;
+        modoCPU = ModoCPU.USUARIO;
     }
 
     @Override

@@ -1,8 +1,10 @@
 package avilaos;
 
+import avilaos.modelo.PoliticaPlanificacion;
 import avilaos.modelo.Proceso;
 import avilaos.modelo.TipoProceso;
 import avilaos.nucleo.Computador;
+import avilaos.nucleo.politicas.FCFS;
 
 public class MainPrueba {
 
@@ -10,30 +12,32 @@ public class MainPrueba {
         Computador.reiniciarContadorIds();
         Proceso.reiniciarContadorGlobal();
 
-        System.out.println("=== AvilaOS - Admision (largo plazo) ===\n");
+        System.out.println("=== AvilaOS - FCFS ===\n");
 
-        Computador pc = new Computador("Nodo-A", 100, 4);
+        Computador pc = new Computador("Nodo-A", 512, 4);
+        pc.setPolitica(new FCFS(), PoliticaPlanificacion.FCFS);
 
-        Proceso p1 = new Proceso("Editor", TipoProceso.CPU_BOUND, 2, 60, 20, 10);
-        Proceso p2 = new Proceso("Logger", TipoProceso.IO_BOUND, 1, 50, 15, 8);
-        Proceso p3 = new Proceso("Sync", TipoProceso.CPU_BOUND, 3, 40, 25, 6);
+        Proceso p1 = new Proceso("A", TipoProceso.CPU_BOUND, 1, 64, 30, 3);
+        Proceso p2 = new Proceso("B", TipoProceso.CPU_BOUND, 1, 64, 30, 2);
+        Proceso p3 = new Proceso("C", TipoProceso.CPU_BOUND, 1, 64, 30, 2);
 
         pc.recibirProceso(p1);
         pc.recibirProceso(p2);
         pc.recibirProceso(p3);
 
-        System.out.println("Tras recibir 3 procesos (RAM=100):");
-        System.out.println(pc);
-        System.out.println("Nuevos: " + pc.getColaNuevos());
-        System.out.println("Listos: " + pc.getColaListos());
+        System.out.println("Listos iniciales: " + pc.getColaListos());
+        System.out.println();
 
-        System.out.println("\nTermina P1 (libera 60):");
-        pc.terminarProceso(p1);
-        System.out.println(pc);
-        System.out.println("Nuevos: " + pc.getColaNuevos());
-        System.out.println("Listos: " + pc.getColaListos());
-        System.out.println("Terminados: " + pc.getColaTerminados());
+        for (int ciclo = 1; ciclo <= 10; ciclo++) {
+            pc.onTick(ciclo);
+            String enCpu = pc.getProcesoEnCPU() == null ? "idle" : pc.getProcesoEnCPU().getEtiqueta();
+            System.out.println("Ciclo " + ciclo
+                    + " | CPU=" + enCpu
+                    + " | listos=" + pc.getColaListos().getTamanio()
+                    + " | term=" + pc.getColaTerminados().getTamanio());
+        }
 
-        System.out.println("\nAdmision OK.");
+        System.out.println("\nTerminados (orden FCFS): " + pc.getColaTerminados());
+        System.out.println("\nFCFS OK.");
     }
 }
