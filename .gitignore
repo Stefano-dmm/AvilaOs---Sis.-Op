@@ -1,0 +1,23 @@
+# Compilados
+build/
+dist/
+out/
+bin/
+*.class
+
+# NetBeans local
+nbproject/private/
+nbbuild/
+nbdist/
+
+# IDE / SO
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs y temporales
+*.log
+*.tmp
+*~
