@@ -3,6 +3,7 @@ package avilaos.nucleo;
 import avilaos.contratos.Ciclico;
 import avilaos.contratos.PoliticaPlanificacionStrategy;
 import avilaos.estructuras.Cola;
+import avilaos.modelo.EstadoProceso;
 import avilaos.modelo.ModoCPU;
 import avilaos.modelo.PoliticaPlanificacion;
 import avilaos.modelo.Proceso;
@@ -157,6 +158,73 @@ public class Computador implements Ciclico {
         ramUsada -= cantidad;
         if (ramUsada < 0) {
             ramUsada = 0;
+        }
+    }
+
+    public void recibirProceso(Proceso proceso) {
+        if (proceso == null) {
+            throw new IllegalArgumentException("El proceso no puede ser null.");
+        }
+        proceso.setComputadorId(id);
+        proceso.setEstado(EstadoProceso.NUEVO);
+        colaNuevos.encolar(proceso);
+        intentarAdmitirNuevos();
+    }
+
+    public int intentarAdmitirNuevos() {
+        int admitidos = 0;
+        int pendientes = colaNuevos.getTamanio();
+
+        for (int i = 0; i < pendientes; i++) {
+            Proceso proceso = colaNuevos.desencolar();
+            if (proceso == null) {
+                break;
+            }
+
+            if (proceso.getMemoriaRequerida() <= getRamLibre()) {
+                reservarMemoria(proceso.getMemoriaRequerida());
+                proceso.setEstado(EstadoProceso.LISTO);
+                pasarAListos(proceso);
+                admitidos++;
+            } else {
+                colaNuevos.encolar(proceso);
+            }
+        }
+
+        return admitidos;
+    }
+
+    public void terminarProceso(Proceso proceso) {
+        if (proceso == null) {
+            return;
+        }
+
+        if (procesoEnCPU == proceso) {
+            procesoEnCPU = null;
+            modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+        }
+
+        colaListos.getLista().eliminar(proceso);
+        colaBloqueados.getLista().eliminar(proceso);
+        colaNuevos.getLista().eliminar(proceso);
+
+        if (proceso.getEstado() != EstadoProceso.NUEVO) {
+            liberarMemoria(proceso.getMemoriaRequerida());
+        }
+
+        proceso.setEstado(EstadoProceso.TERMINADO);
+        if (!colaTerminados.getLista().contiene(proceso)) {
+            colaTerminados.encolar(proceso);
+        }
+
+        intentarAdmitirNuevos();
+    }
+
+    private void pasarAListos(Proceso proceso) {
+        if (politica != null) {
+            politica.alLlegar(proceso, colaListos);
+        } else {
+            colaListos.encolar(proceso);
         }
     }
 
