@@ -3,6 +3,7 @@ package avilaos.nucleo;
 import avilaos.contratos.Ciclico;
 import avilaos.contratos.PoliticaPlanificacionStrategy;
 import avilaos.estructuras.Cola;
+import avilaos.estructuras.Nodo;
 import avilaos.modelo.EstadoProceso;
 import avilaos.modelo.ModoCPU;
 import avilaos.modelo.PoliticaPlanificacion;
@@ -236,6 +237,10 @@ public class Computador implements Ciclico {
     public void onTick(int cicloGlobal) {
         if (procesoEnCPU == null) {
             despacharSiguiente();
+        } else if (nombrePolitica == PoliticaPlanificacion.PRIORIDADES
+                && hayListoConMayorPrioridad()) {
+            desalojarProcesoActual();
+            despacharSiguiente();
         }
 
         if (procesoEnCPU == null) {
@@ -250,7 +255,44 @@ public class Computador implements Ciclico {
         if (porDeadline || procesoEnCPU.estaTerminado()) {
             terminarProceso(procesoEnCPU);
             despacharSiguiente();
+            return;
         }
+
+        if (nombrePolitica == PoliticaPlanificacion.ROUND_ROBIN) {
+            quantumRestante--;
+            if (quantumRestante <= 0) {
+                if (!colaListos.estaVacia()) {
+                    desalojarProcesoActual();
+                    despacharSiguiente();
+                } else {
+                    quantumRestante = quantum;
+                }
+            }
+        }
+    }
+
+    private void desalojarProcesoActual() {
+        if (procesoEnCPU == null || politica == null) {
+            return;
+        }
+        procesoEnCPU.setEstado(EstadoProceso.LISTO);
+        politica.alLlegar(procesoEnCPU, colaListos);
+        procesoEnCPU = null;
+        modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+    }
+
+    private boolean hayListoConMayorPrioridad() {
+        if (procesoEnCPU == null) {
+            return false;
+        }
+        Nodo<Proceso> actual = colaListos.getLista().getCabeza();
+        while (actual != null) {
+            if (actual.getDato().getPrioridad() > procesoEnCPU.getPrioridad()) {
+                return true;
+            }
+            actual = actual.getSiguiente();
+        }
+        return false;
     }
 
     private void despacharSiguiente() {
