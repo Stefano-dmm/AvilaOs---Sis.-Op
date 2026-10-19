@@ -127,6 +127,7 @@ public class Computador implements Ciclico {
     public void setPolitica(PoliticaPlanificacionStrategy politica, PoliticaPlanificacion nombre) {
         this.politica = politica;
         this.nombrePolitica = nombre;
+        this.quantumRestante = quantum;
     }
 
     public Cola<Proceso> getColaNuevos() {
