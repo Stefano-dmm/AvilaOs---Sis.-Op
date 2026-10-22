@@ -45,6 +45,7 @@ public class VentanaPrincipal extends JFrame {
     }
 
     private void construirPestanas() {
+        pestanas.addTab("Crear proceso", new PanelCrearProceso(cluster, log, this::refrescarPaneles));
         int i = 0;
         Nodo<Computador> actual = cluster.getComputadores().getCabeza();
         while (actual != null) {
@@ -103,6 +104,10 @@ public class VentanaPrincipal extends JFrame {
         log.setCicloActual(ciclo);
         cluster.onTickGlobal(ciclo);
         lblCiclo.setText("Ciclo: " + ciclo);
+        refrescarPaneles();
+    }
+
+    private void refrescarPaneles() {
         for (PanelComputador panel : paneles) {
             panel.refrescar();
         }
