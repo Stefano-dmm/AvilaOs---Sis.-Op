@@ -31,6 +31,7 @@ public class VentanaPrincipal extends JFrame {
     private final Cluster cluster;
     private final Configuracion config;
     private final LogEventos log = new LogEventos();
+    private final RegistradorEventos registrador;
     private final JLabel lblCiclo = new JLabel("Ciclo: 0");
     private final JButton btnIniciar = new JButton("Iniciar");
     private final JButton btnPaso = new JButton("Paso");
@@ -45,6 +46,7 @@ public class VentanaPrincipal extends JFrame {
         super("AvilaOS - Simulador distribuido");
         this.cluster = cluster;
         this.config = config;
+        this.registrador = new RegistradorEventos(cluster, log);
         this.paneles = new PanelComputador[cluster.getCantidadComputadores()];
         this.spnDuracionCiclo = new JSpinner(new SpinnerNumberModel(config.getCicloMs(),
                 Configuracion.MIN_CICLO_MS, Configuracion.MAX_CICLO_MS, 50));
@@ -116,6 +118,7 @@ public class VentanaPrincipal extends JFrame {
         ciclo++;
         log.setCicloActual(ciclo);
         cluster.onTickGlobal(ciclo);
+        registrador.observarCiclo();
         lblCiclo.setText("Ciclo: " + ciclo);
         refrescarPaneles();
     }
