@@ -1,5 +1,6 @@
 package avilaos.gui;
 
+import avilaos.config.ConfigProceso;
 import avilaos.estructuras.Nodo;
 import avilaos.modelo.Proceso;
 import avilaos.modelo.TipoProceso;
@@ -10,6 +11,7 @@ import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -23,7 +25,7 @@ public class PanelCrearProceso extends JPanel {
 
     private final Cluster cluster;
     private final LogEventos log;
-    private final Runnable alCrear;
+    private final Consumer<ConfigProceso> alCrear;
 
     private final JTextField txtNombre = new JTextField(15);
     private final JComboBox<TipoProceso> cmbTipo = new JComboBox<>(TipoProceso.values());
@@ -33,7 +35,7 @@ public class PanelCrearProceso extends JPanel {
     private final JTextField txtDeadline = new JTextField(8);
     private final JComboBox<Computador> cmbComputador = new JComboBox<>();
 
-    public PanelCrearProceso(Cluster cluster, LogEventos log, Runnable alCrear) {
+    public PanelCrearProceso(Cluster cluster, LogEventos log, Consumer<ConfigProceso> alCrear) {
         this.cluster = cluster;
         this.log = log;
         this.alCrear = alCrear;
@@ -99,6 +101,9 @@ public class PanelCrearProceso extends JPanel {
             if (nombre.isEmpty()) {
                 throw new IllegalArgumentException("El nombre no puede estar vacio.");
             }
+            if (nombre.contains(",")) {
+                throw new IllegalArgumentException("El nombre no puede contener comas.");
+            }
             Computador destino = (Computador) cmbComputador.getSelectedItem();
             if (destino == null) {
                 throw new IllegalArgumentException("Debe elegir un computador.");
@@ -108,12 +113,14 @@ public class PanelCrearProceso extends JPanel {
             int prioridad = leerEntero(txtPrioridad, "Prioridad", 1, 100);
             int deadline = leerEntero(txtDeadline, "Deadline", 1, 1000000);
 
-            Proceso proceso = new Proceso(nombre, (TipoProceso) cmbTipo.getSelectedItem(),
-                    prioridad, memoria, deadline, instrucciones);
+            TipoProceso tipo = (TipoProceso) cmbTipo.getSelectedItem();
+            Proceso proceso = new Proceso(nombre, tipo, prioridad, memoria, deadline, instrucciones);
             cluster.asignarProcesoManual(proceso, destino.getId());
             log.registrar("Se crea " + proceso.getEtiqueta() + " en " + destino.getNombre());
+            ConfigProceso original = new ConfigProceso(nombre, tipo, prioridad, memoria, deadline,
+                    instrucciones, cmbComputador.getSelectedIndex());
             limpiar();
-            alCrear.run();
+            alCrear.accept(original);
         } catch (IllegalArgumentException | IllegalStateException ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Datos invalidos",
                     JOptionPane.WARNING_MESSAGE);

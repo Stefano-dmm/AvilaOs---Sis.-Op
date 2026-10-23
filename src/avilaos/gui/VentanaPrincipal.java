@@ -1,13 +1,20 @@
 package avilaos.gui;
 
+import avilaos.config.ArchivoConfiguracion;
+import avilaos.config.ConfigProceso;
+import avilaos.config.Configuracion;
 import avilaos.estructuras.Nodo;
 import avilaos.nucleo.Cluster;
 import avilaos.nucleo.Computador;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.io.File;
+import java.io.IOException;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
@@ -22,22 +29,26 @@ import javax.swing.Timer;
 public class VentanaPrincipal extends JFrame {
 
     private final Cluster cluster;
+    private final Configuracion config;
     private final LogEventos log = new LogEventos();
     private final JLabel lblCiclo = new JLabel("Ciclo: 0");
     private final JButton btnIniciar = new JButton("Iniciar");
     private final JButton btnPaso = new JButton("Paso");
-    private final JSpinner spnDuracionCiclo =
-            new JSpinner(new SpinnerNumberModel(500, 50, 10000, 50));
+    private final JButton btnGuardar = new JButton("Guardar configuracion");
+    private final JSpinner spnDuracionCiclo;
     private final Timer reloj;
     private final JTabbedPane pestanas = new JTabbedPane();
     private final PanelComputador[] paneles;
     private int ciclo;
 
-    public VentanaPrincipal(Cluster cluster) {
+    public VentanaPrincipal(Cluster cluster, Configuracion config) {
         super("AvilaOS - Simulador distribuido");
         this.cluster = cluster;
+        this.config = config;
         this.paneles = new PanelComputador[cluster.getCantidadComputadores()];
-        this.reloj = new Timer((Integer) spnDuracionCiclo.getValue(), e -> avanzarCiclo());
+        this.spnDuracionCiclo = new JSpinner(new SpinnerNumberModel(config.getCicloMs(),
+                Configuracion.MIN_CICLO_MS, Configuracion.MAX_CICLO_MS, 50));
+        this.reloj = new Timer(config.getCicloMs(), e -> avanzarCiclo());
 
         construirPestanas();
         construirVentana();
@@ -45,7 +56,7 @@ public class VentanaPrincipal extends JFrame {
     }
 
     private void construirPestanas() {
-        pestanas.addTab("Crear proceso", new PanelCrearProceso(cluster, log, this::refrescarPaneles));
+        pestanas.addTab("Crear proceso", new PanelCrearProceso(cluster, log, this::procesoCreado));
         int i = 0;
         Nodo<Computador> actual = cluster.getComputadores().getCabeza();
         while (actual != null) {
@@ -63,6 +74,7 @@ public class VentanaPrincipal extends JFrame {
         barra.add(new JLabel("Duracion del ciclo (ms):"));
         barra.add(spnDuracionCiclo);
         barra.add(lblCiclo);
+        barra.add(btnGuardar);
 
         JSplitPane division = new JSplitPane(JSplitPane.VERTICAL_SPLIT, pestanas, log.getComponente());
         division.setResizeWeight(0.75);
@@ -82,6 +94,7 @@ public class VentanaPrincipal extends JFrame {
                 avanzarCiclo();
             }
         });
+        btnGuardar.addActionListener(e -> guardarConfiguracion());
         spnDuracionCiclo.addChangeListener(e -> reloj.setDelay((Integer) spnDuracionCiclo.getValue()));
     }
 
@@ -105,6 +118,27 @@ public class VentanaPrincipal extends JFrame {
         cluster.onTickGlobal(ciclo);
         lblCiclo.setText("Ciclo: " + ciclo);
         refrescarPaneles();
+    }
+
+    private void procesoCreado(ConfigProceso proceso) {
+        config.agregarProceso(proceso);
+        refrescarPaneles();
+    }
+
+    private void guardarConfiguracion() {
+        JFileChooser selector = new JFileChooser();
+        selector.setSelectedFile(new File("configuracion.csv"));
+        if (selector.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        try {
+            config.setCicloMs((Integer) spnDuracionCiclo.getValue());
+            ArchivoConfiguracion.guardar(selector.getSelectedFile().toPath(), config);
+            log.registrar("Configuracion guardada en " + selector.getSelectedFile().getName());
+        } catch (IOException ex) {
+            JOptionPane.showMessageDialog(this, "No se pudo guardar el archivo: " + ex.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void refrescarPaneles() {
