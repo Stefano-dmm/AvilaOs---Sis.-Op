@@ -4,6 +4,7 @@ import avilaos.config.ArchivoConfiguracion;
 import avilaos.config.ConfigProceso;
 import avilaos.config.Configuracion;
 import avilaos.estructuras.Nodo;
+import avilaos.metricas.HistorialUtilizacion;
 import avilaos.nucleo.Cluster;
 import avilaos.nucleo.Computador;
 import java.awt.BorderLayout;
@@ -32,6 +33,8 @@ public class VentanaPrincipal extends JFrame {
     private final Configuracion config;
     private final LogEventos log = new LogEventos();
     private final RegistradorEventos registrador;
+    private final HistorialUtilizacion historial;
+    private PanelMetricas panelMetricas;
     private final JLabel lblCiclo = new JLabel("Ciclo: 0");
     private final JButton btnIniciar = new JButton("Iniciar");
     private final JButton btnPaso = new JButton("Paso");
@@ -47,6 +50,7 @@ public class VentanaPrincipal extends JFrame {
         this.cluster = cluster;
         this.config = config;
         this.registrador = new RegistradorEventos(cluster, log);
+        this.historial = new HistorialUtilizacion(cluster);
         this.paneles = new PanelComputador[cluster.getCantidadComputadores()];
         this.spnDuracionCiclo = new JSpinner(new SpinnerNumberModel(config.getCicloMs(),
                 Configuracion.MIN_CICLO_MS, Configuracion.MAX_CICLO_MS, 50));
@@ -67,6 +71,8 @@ public class VentanaPrincipal extends JFrame {
             actual = actual.getSiguiente();
             i++;
         }
+        panelMetricas = new PanelMetricas(cluster, historial);
+        pestanas.addTab("Metricas", panelMetricas);
     }
 
     private void construirVentana() {
@@ -119,6 +125,7 @@ public class VentanaPrincipal extends JFrame {
         log.setCicloActual(ciclo);
         cluster.onTickGlobal(ciclo);
         registrador.observarCiclo();
+        historial.registrar();
         lblCiclo.setText("Ciclo: " + ciclo);
         refrescarPaneles();
     }
@@ -148,5 +155,6 @@ public class VentanaPrincipal extends JFrame {
         for (PanelComputador panel : paneles) {
             panel.refrescar();
         }
+        panelMetricas.refrescar();
     }
 }

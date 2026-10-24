@@ -15,6 +15,9 @@ public class Proceso {
     private int tiempoRestante;
     private int pc;
     private String motivoBloqueo;
+    private int cicloLlegada = -1;
+    private int cicloPrimerDespacho = -1;
+    private int cicloFin = -1;
 
     public Proceso(String nombre, TipoProceso tipo, int prioridad,
                    int memoriaRequerida, int deadline, int tiempoRestante) {
@@ -111,6 +114,43 @@ public class Proceso {
 
     public void setPc(int pc) {
         this.pc = pc;
+    }
+
+    /** Ciclo global en que el proceso llego a su computador; -1 si aun no llega. */
+    public int getCicloLlegada() {
+        return cicloLlegada;
+    }
+
+    public void setCicloLlegada(int cicloLlegada) {
+        this.cicloLlegada = cicloLlegada;
+    }
+
+    /** Ciclo global en que fue despachado a la CPU por primera vez; -1 si nunca lo fue. */
+    public int getCicloPrimerDespacho() {
+        return cicloPrimerDespacho;
+    }
+
+    public void setCicloPrimerDespacho(int cicloPrimerDespacho) {
+        this.cicloPrimerDespacho = cicloPrimerDespacho;
+    }
+
+    /** Ciclo global en que termino; -1 si sigue vivo. */
+    public int getCicloFin() {
+        return cicloFin;
+    }
+
+    public void setCicloFin(int cicloFin) {
+        this.cicloFin = cicloFin;
+    }
+
+    /** Un proceso cumple su deadline si ejecuto todas sus instrucciones antes de que llegara a 0. */
+    public boolean cumplioDeadline() {
+        return estado == EstadoProceso.TERMINADO && tiempoRestante <= 0;
+    }
+
+    /** Ciclos que el proceso ha ejecutado en la CPU. */
+    public int getCiclosEjecutados() {
+        return pc;
     }
 
     /** Texto que explica por que esta bloqueado (por ejemplo el semaforo); null si no lo esta. */

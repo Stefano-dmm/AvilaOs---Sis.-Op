@@ -23,6 +23,9 @@ public class Computador implements Ciclico {
     private Proceso procesoEnCPU;
     private PoliticaPlanificacionStrategy politica;
     private PoliticaPlanificacion nombrePolitica;
+    private int cicloActual;
+    private int ciclosTotales;
+    private int ciclosOcupados;
 
     private final Cola<Proceso> colaNuevos = new Cola<>();
     private final Cola<Proceso> colaListos = new Cola<>();
@@ -62,6 +65,20 @@ public class Computador implements Ciclico {
 
     public void setNombre(String nombre) {
         this.nombre = nombre;
+    }
+
+    public int getCicloActual() {
+        return cicloActual;
+    }
+
+    /** Ciclos de reloj que este computador ha vivido. */
+    public int getCiclosTotales() {
+        return ciclosTotales;
+    }
+
+    /** Ciclos en que la CPU ejecuto una instruccion de un proceso de usuario. */
+    public int getCiclosOcupados() {
+        return ciclosOcupados;
     }
 
     public int getRamTotal() {
@@ -168,6 +185,7 @@ public class Computador implements Ciclico {
         }
         proceso.setComputadorId(id);
         proceso.setEstado(EstadoProceso.NUEVO);
+        proceso.setCicloLlegada(cicloActual);
         colaNuevos.encolar(proceso);
         intentarAdmitirNuevos();
     }
@@ -214,6 +232,7 @@ public class Computador implements Ciclico {
         }
 
         proceso.setEstado(EstadoProceso.TERMINADO);
+        proceso.setCicloFin(cicloActual);
         if (!colaTerminados.getLista().contiene(proceso)) {
             colaTerminados.encolar(proceso);
         }
@@ -235,6 +254,8 @@ public class Computador implements Ciclico {
 
     @Override
     public void onTick(int cicloGlobal) {
+        cicloActual = cicloGlobal;
+        ciclosTotales++;
         if (procesoEnCPU == null) {
             despacharSiguiente();
         } else if (nombrePolitica == PoliticaPlanificacion.PRIORIDADES
@@ -249,6 +270,7 @@ public class Computador implements Ciclico {
         }
 
         modoCPU = ModoCPU.USUARIO;
+        ciclosOcupados++;
         procesoEnCPU.ejecutarUnCiclo();
         boolean porDeadline = procesoEnCPU.decrementarDeadline();
 
@@ -306,6 +328,9 @@ public class Computador implements Ciclico {
             return;
         }
         siguiente.setEstado(EstadoProceso.EJECUCION);
+        if (siguiente.getCicloPrimerDespacho() < 0) {
+            siguiente.setCicloPrimerDespacho(cicloActual);
+        }
         procesoEnCPU = siguiente;
         quantumRestante = quantum;
         modoCPU = ModoCPU.USUARIO;
