@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<<<<<<< HEAD
 <!-- You may freely edit this file. See commented blocks below for -->
 <!-- some examples of how to customize the build. -->
 <!-- (If you delete it and reopen the project it will be recreated.) -->
@@ -70,4 +71,24 @@
     nbproject/build-impl.xml file. 
 
     -->
+=======
+<project name="AvilaOS" default="run" basedir=".">
+    <property name="src.dir" value="src"/>
+    <property name="build.dir" value="build/classes"/>
+    <property name="main.class" value="avilaos.MainPrueba"/>
+
+    <target name="clean">
+        <delete dir="build"/>
+    </target>
+
+    <target name="compile">
+        <mkdir dir="${build.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"
+               encoding="UTF-8" source="21" target="21"/>
+    </target>
+
+    <target name="run" depends="compile">
+        <java classname="${main.class}" classpath="${build.dir}" fork="true"/>
+    </target>
+>>>>>>> 513a821ff53765270da621c48642c62bcc7aaec3
 </project>

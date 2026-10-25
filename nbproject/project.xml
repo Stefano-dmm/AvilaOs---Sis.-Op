@@ -3,7 +3,11 @@
     <type>org.netbeans.modules.java.j2seproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/j2se-project/3">
+<<<<<<< HEAD
             <name>Proyecto AvilaOS Jesús Bethencourt</name>
+=======
+            <name>AvilaOS</name>
+>>>>>>> 513a821ff53765270da621c48642c62bcc7aaec3
             <source-roots>
                 <root id="src.dir"/>
             </source-roots>

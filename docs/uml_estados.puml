@@ -1,0 +1,18 @@
+@startuml AvilaOS_EstadosProceso
+
+[*] --> Nuevo : crear proceso
+
+Nuevo --> Listo : hay RAM libre\n(admisión / largo plazo)
+Nuevo --> Nuevo : no hay RAM\n(espera en cola de nuevos)
+
+Listo --> Ejecucion : planificador\nlo selecciona
+
+Ejecucion --> Listo : desalojo\n(quantum / prioridad)
+Ejecucion --> Bloqueado : espera recurso\n(semáforo, I/O, red)
+Ejecucion --> Terminado : tiempo restante = 0\no deadline = 0
+
+Bloqueado --> Listo : recurso disponible\n(despertar)
+
+Terminado --> [*] : libera RAM\ny sale del sistema
+
+@enduml
