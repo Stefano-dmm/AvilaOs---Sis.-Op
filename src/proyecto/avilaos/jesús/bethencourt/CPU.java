@@ -24,7 +24,7 @@ public class CPU {
     }
 
     /**
-     * Ejecuta un ciclo de instrucción del proceso actual.
+     * Se Ejecuta un ciclo de instrucción del proceso actual.
      * Es llamado desde el computador o el reloj global.
      */
     public void ejecutarCiclo() {
@@ -49,7 +49,7 @@ public class CPU {
         }
     }
 
-    // ================= Getters y Setters =================
+    // Getters y Setters
     
     public int getPc() {
         return pc;
