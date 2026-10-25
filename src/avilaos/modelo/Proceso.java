@@ -169,5 +169,11 @@ public class Proceso {
                 + ", dl=" + deadline
                 + ", rest=" + tiempoRestante
                 + ", pc=" + pc + "]";
+}
+
+    public void ejecutarCiclo() {
+        if (tiempoRestante > 0) {
+            tiempoRestante--;
+        }
     }
 }

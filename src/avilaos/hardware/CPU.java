@@ -41,7 +41,7 @@ public class CPU {
     public void cargarProceso(Proceso p) {
         this.procesoActual = p;
         if (p != null) {
-            this.pc = p.getInstructionPointer(); // O el contador inicial del proceso
+            this.pc = p.getPc(); // O el contador inicial del proceso
             this.modo = "USUARIO";
         } else {
             this.pc = 0;

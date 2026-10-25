@@ -22,7 +22,7 @@ public class RAM {
     }
 
     public boolean asignarMemoria(Proceso proceso) {
-        int tamanoProceso = proceso.getTamano();
+        int tamanoProceso = proceso.getMemoriaRequerida();
         
         if (memoriaUsada + tamanoProceso <= capacidadTotal) {
             procesosEnMemoria.add(proceso);
@@ -37,7 +37,7 @@ public class RAM {
      */
     public void liberarMemoria(Proceso proceso) {
         if (procesosEnMemoria.remove(proceso)) {
-            memoriaUsada -= proceso.getTamano();
+            memoriaUsada -= proceso.getMemoriaRequerida();
         }
     }
 

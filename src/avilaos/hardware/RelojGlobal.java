@@ -9,7 +9,7 @@ package avilaos.hardware;
  * @author bethe
  */
 import java.util.ArrayList;
-import proyecto.avilaos.jesús.bethencourt.Clockable;
+
 public class RelojGlobal implements Runnable {
     private long cicloActual;
     private boolean activo;
@@ -33,6 +33,13 @@ public class RelojGlobal implements Runnable {
         suscriptores.remove(c);
     }
 
+    private void notificarSuscriptores() {
+        // Recorremos los suscriptores para avisarles que ocurrió un nuevo ciclo
+        for (int i = 0; i < suscriptores.size(); i++) {
+            suscriptores.get(i).tic(cicloActual);
+        }
+    }
+
     @Override
     public void run() {
         activo = true;
@@ -48,18 +55,11 @@ public class RelojGlobal implements Runnable {
         }
     }
 
-    private void notificarSuscriptores() {
-        // Recorremos los suscriptores para avisarles que ocurrió un nuevo ciclo
-        for (int i = 0; i < suscriptores.size(); i++) {
-            suscriptores.get(i).tick(cicloActual);
-        }
-    }
-
     public void detener() {
         this.activo = false;
     }
 
-    // ================= Getters y Setters =================
+    //Getters y Setters
 
     public long getCicloActual() {
         return cicloActual;
