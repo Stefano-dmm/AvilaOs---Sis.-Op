@@ -18,6 +18,7 @@ public final class ConstructorCluster {
         Proceso.reiniciarContadorGlobal();
 
         Cluster cluster = new Cluster();
+        cluster.setLatenciaRed(config.getLatenciaRed());
         Nodo<ConfigComputador> nodoPc = config.getComputadores().getCabeza();
         while (nodoPc != null) {
             ConfigComputador c = nodoPc.getDato();

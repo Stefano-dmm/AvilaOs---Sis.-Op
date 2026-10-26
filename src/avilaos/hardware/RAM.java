@@ -41,6 +41,19 @@ public class RAM {
         }
     }
 
+    /** Reserva memoria que no pertenece a un proceso (por ejemplo un buffer); false si no cabe. */
+    public boolean reservar(int cantidad) {
+        if (cantidad < 0 || cantidad > getMemoriaDisponible()) {
+            return false;
+        }
+        memoriaUsada += cantidad;
+        return true;
+    }
+
+    public void liberar(int cantidad) {
+        memoriaUsada = Math.max(0, memoriaUsada - cantidad);
+    }
+
     public int getMemoriaDisponible() {
         return capacidadTotal - memoriaUsada;
     }

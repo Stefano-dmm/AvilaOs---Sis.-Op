@@ -4,12 +4,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 
-/** Log de eventos de texto visible en la ventana principal. */
+/** Log de eventos de texto visible en la ventana principal. Se puede escribir desde cualquier hilo. */
 public class LogEventos {
 
     private final JTextArea area = new JTextArea();
     private final JScrollPane scroll = new JScrollPane(area);
-    private int cicloActual;
+    private volatile int cicloActual;
 
     public LogEventos() {
         area.setEditable(false);
@@ -24,8 +24,9 @@ public class LogEventos {
     }
 
     public void registrar(String mensaje) {
+        final String linea = "[ciclo " + cicloActual + "] " + mensaje + "\n";
         Runnable agregar = () -> {
-            area.append("[ciclo " + cicloActual + "] " + mensaje + "\n");
+            area.append(linea);
             area.setCaretPosition(area.getDocument().getLength());
         };
         if (SwingUtilities.isEventDispatchThread()) {

@@ -2,6 +2,7 @@ package avilaos.gui;
 
 import avilaos.modelo.ModoCPU;
 import avilaos.modelo.PoliticaPlanificacion;
+import avilaos.nucleo.Cluster;
 import avilaos.nucleo.Computador;
 import avilaos.nucleo.politicas.FabricaPoliticas;
 import java.awt.BorderLayout;
@@ -87,7 +88,7 @@ public class PanelComputador extends JPanel {
             }
             PoliticaPlanificacion elegida = (PoliticaPlanificacion) cmbPolitica.getSelectedItem();
             if (elegida != null && elegida != computador.getNombrePolitica()) {
-                computador.setPolitica(FabricaPoliticas.crear(elegida), elegida);
+                conCerrojo(() -> computador.setPolitica(FabricaPoliticas.crear(elegida), elegida));
                 log.registrar(computador.getNombre() + " cambia su politica a " + elegida);
             }
         });
@@ -96,9 +97,24 @@ public class PanelComputador extends JPanel {
                 return;
             }
             int q = (Integer) spnQuantum.getValue();
-            computador.setQuantum(q);
+            conCerrojo(() -> computador.setQuantum(q));
             log.registrar(computador.getNombre() + " cambia su quantum a " + q);
         });
+    }
+
+    /** Los cambios hechos desde la ventana esperan a que termine el ciclo en curso del reloj. */
+    private void conCerrojo(Runnable cambio) {
+        Cluster cluster = computador.getCluster();
+        if (cluster != null) {
+            cluster.adquirir();
+        }
+        try {
+            cambio.run();
+        } finally {
+            if (cluster != null) {
+                cluster.liberar();
+            }
+        }
     }
 
     /** Debe llamarse desde el hilo de Swing. */
@@ -106,7 +122,8 @@ public class PanelComputador extends JPanel {
         actualizando = true;
         try {
             lblModo.setText("Modo: " + (computador.getModoCPU() == ModoCPU.USUARIO
-                    ? "ejecutando programa de usuario" : "ejecutando sistema operativo"));
+                    ? "ejecutando programa de usuario" : "ejecutando sistema operativo")
+                    + "   |   PC=" + computador.getCpu().getPc() + "   MAR=" + computador.getCpu().getMar());
 
             barraRam.setMaximum(computador.getRamTotal());
             barraRam.setValue(computador.getRamUsada());

@@ -2,6 +2,7 @@ package avilaos.nucleo;
 
 import avilaos.estructuras.ListaEnlazada;
 import avilaos.estructuras.Nodo;
+import avilaos.hardware.RelojGlobal;
 import avilaos.modelo.Proceso;
 import avilaos.sincronizacion.BufferSO;
 import java.util.concurrent.Semaphore;
@@ -132,6 +133,21 @@ public class Cluster {
         if (oyente != null) {
             oyente.accept(mensaje);
         }
+    }
+
+    /**
+     * Crea el reloj global con todos los computadores suscritos: en cada tic cada uno avanza un ciclo,
+     * cada uno en su propio hilo. El reloj toma el cerrojo del cluster mientras dura cada ciclo.
+     */
+    public RelojGlobal crearReloj(long velocidadMs) {
+        RelojGlobal reloj = new RelojGlobal(velocidadMs);
+        reloj.setCerrojo(cerrojo);
+        Nodo<Computador> actual = computadores.getCabeza();
+        while (actual != null) {
+            reloj.suscribir(actual.getDato());
+            actual = actual.getSiguiente();
+        }
+        return reloj;
     }
 
     /** Cerrojo del estado compartido: lo toma el reloj en cada ciclo y la interfaz al modificar. */

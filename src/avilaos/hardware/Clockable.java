@@ -4,6 +4,8 @@
  */
 package avilaos.hardware;
 /**
+ * Todo componente que reacciona al reloj global (el computador, y mas adelante un DMA) comparte
+ * esta interfaz: en cada ciclo el reloj llama a tic exactamente una vez.
  *
  * @author bethe
  */

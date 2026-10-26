@@ -4,11 +4,14 @@ import avilaos.config.ArchivoConfiguracion;
 import avilaos.config.ConfigProceso;
 import avilaos.config.Configuracion;
 import avilaos.estructuras.Nodo;
+import avilaos.hardware.RelojGlobal;
 import avilaos.metricas.HistorialUtilizacion;
 import avilaos.nucleo.Cluster;
 import avilaos.nucleo.Computador;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import javax.swing.JButton;
@@ -21,11 +24,11 @@ import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.SpinnerNumberModel;
-import javax.swing.Timer;
+import javax.swing.SwingUtilities;
 
 /**
- * Ventana principal. Solo observa y controla el Cluster: avanza el reloj y refresca paneles.
- * El Timer de Swing es un avance temporal del reloj hasta integrar el reloj global del proyecto.
+ * Ventana principal. Solo observa y controla el Cluster: el reloj global (con sus hilos) hace
+ * avanzar la simulacion y la ventana refresca lo que ve al terminar cada ciclo.
  */
 public class VentanaPrincipal extends JFrame {
 
@@ -40,10 +43,9 @@ public class VentanaPrincipal extends JFrame {
     private final JButton btnPaso = new JButton("Paso");
     private final JButton btnGuardar = new JButton("Guardar configuracion");
     private final JSpinner spnDuracionCiclo;
-    private final Timer reloj;
+    private final RelojGlobal reloj;
     private final JTabbedPane pestanas = new JTabbedPane();
     private final PanelComputador[] paneles;
-    private int ciclo;
 
     public VentanaPrincipal(Cluster cluster, Configuracion config) {
         super("AvilaOS - Simulador distribuido");
@@ -54,7 +56,10 @@ public class VentanaPrincipal extends JFrame {
         this.paneles = new PanelComputador[cluster.getCantidadComputadores()];
         this.spnDuracionCiclo = new JSpinner(new SpinnerNumberModel(config.getCicloMs(),
                 Configuracion.MIN_CICLO_MS, Configuracion.MAX_CICLO_MS, 50));
-        this.reloj = new Timer(config.getCicloMs(), e -> avanzarCiclo());
+        this.reloj = cluster.crearReloj(config.getCicloMs());
+        cluster.setOyenteEventos(log::registrar);
+        reloj.setAlCompletarCiclo(this::alCompletarCiclo);
+        reloj.setAlFallar(this::alFallarElReloj);
 
         construirPestanas();
         construirVentana();
@@ -97,37 +102,50 @@ public class VentanaPrincipal extends JFrame {
 
     private void conectarControles() {
         btnIniciar.addActionListener(e -> alternarReloj());
-        btnPaso.addActionListener(e -> {
-            if (!reloj.isRunning()) {
-                avanzarCiclo();
+        btnPaso.addActionListener(e -> reloj.paso());
+        btnGuardar.addActionListener(e -> guardarConfiguracion());
+        spnDuracionCiclo.addChangeListener(e -> reloj.setVelocidadMs((Integer) spnDuracionCiclo.getValue()));
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                reloj.detener();
             }
         });
-        btnGuardar.addActionListener(e -> guardarConfiguracion());
-        spnDuracionCiclo.addChangeListener(e -> reloj.setDelay((Integer) spnDuracionCiclo.getValue()));
     }
 
     private void alternarReloj() {
-        if (reloj.isRunning()) {
-            reloj.stop();
+        if (reloj.isEnMarcha()) {
+            reloj.pausar();
             btnIniciar.setText("Iniciar");
             btnPaso.setEnabled(true);
             log.registrar("Simulacion en pausa");
         } else {
-            reloj.start();
+            reloj.iniciar();
             btnIniciar.setText("Pausar");
             btnPaso.setEnabled(false);
             log.registrar("Simulacion en marcha");
         }
     }
 
-    private void avanzarCiclo() {
-        ciclo++;
+    /** Se ejecuta en el hilo del reloj, con el cerrojo del cluster tomado: nadie modifica el estado. */
+    private void alCompletarCiclo(long cicloReloj) {
+        int ciclo = (int) cicloReloj;
         log.setCicloActual(ciclo);
-        cluster.onTickGlobal(ciclo);
         registrador.observarCiclo();
         historial.registrar();
-        lblCiclo.setText("Ciclo: " + ciclo);
-        refrescarPaneles();
+        SwingUtilities.invokeLater(() -> {
+            lblCiclo.setText("Ciclo: " + ciclo);
+            refrescarPaneles();
+        });
+    }
+
+    private void alFallarElReloj(Throwable error) {
+        SwingUtilities.invokeLater(() -> {
+            btnIniciar.setText("Iniciar");
+            btnPaso.setEnabled(true);
+            JOptionPane.showMessageDialog(this, "La simulacion se detuvo por un error interno: " + error,
+                    "Error", JOptionPane.ERROR_MESSAGE);
+        });
     }
 
     private void procesoCreado(ConfigProceso proceso) {
@@ -151,10 +169,16 @@ public class VentanaPrincipal extends JFrame {
         }
     }
 
+    /** Lee el estado del cluster, por eso toma el cerrojo para no ver un ciclo a medias. */
     private void refrescarPaneles() {
-        for (PanelComputador panel : paneles) {
-            panel.refrescar();
+        cluster.adquirir();
+        try {
+            for (PanelComputador panel : paneles) {
+                panel.refrescar();
+            }
+            panelMetricas.refrescar();
+        } finally {
+            cluster.liberar();
         }
-        panelMetricas.refrescar();
     }
 }

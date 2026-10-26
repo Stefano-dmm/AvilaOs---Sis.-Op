@@ -1,9 +1,11 @@
 package avilaos.nucleo;
 
-import avilaos.contratos.Ciclico;
 import avilaos.contratos.PoliticaPlanificacionStrategy;
 import avilaos.contratos.ProgramaProceso;
 import avilaos.estructuras.Cola;
+import avilaos.hardware.CPU;
+import avilaos.hardware.Clockable;
+import avilaos.hardware.RAM;
 import avilaos.estructuras.Nodo;
 import avilaos.modelo.EstadoProceso;
 import avilaos.modelo.ModoCPU;
@@ -14,19 +16,17 @@ import avilaos.nucleo.programas.ProgramaCpuBound;
 import avilaos.sincronizacion.SemaforoSO;
 import java.util.concurrent.Semaphore;
 
-public class Computador implements Ciclico {
+public class Computador implements Clockable {
 
     private static final ProgramaProceso PROGRAMA_POR_DEFECTO = new ProgramaCpuBound();
     private static int contadorIds = 0;
 
     private final int id;
     private String nombre;
-    private int ramTotal;
-    private int ramUsada;
-    private ModoCPU modoCPU;
+    private final CPU cpu = new CPU();
+    private final RAM ram;
     private int quantum;
     private int quantumRestante;
-    private Proceso procesoEnCPU;
     private PoliticaPlanificacionStrategy politica;
     private PoliticaPlanificacion nombrePolitica;
     private int cicloActual;
@@ -55,12 +55,9 @@ public class Computador implements Ciclico {
 
         this.id = ++contadorIds;
         this.nombre = nombre.trim();
-        this.ramTotal = ramTotal;
-        this.ramUsada = 0;
-        this.modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+        this.ram = new RAM(ramTotal);
         this.quantum = quantum;
         this.quantumRestante = quantum;
-        this.procesoEnCPU = null;
         this.politica = null;
         this.nombrePolitica = null;
     }
@@ -91,28 +88,36 @@ public class Computador implements Ciclico {
         return ciclosOcupados;
     }
 
+    public CPU getCpu() {
+        return cpu;
+    }
+
+    public RAM getRam() {
+        return ram;
+    }
+
     public int getRamTotal() {
-        return ramTotal;
+        return ram.getCapacidadTotal();
     }
 
     public void setRamTotal(int ramTotal) {
-        this.ramTotal = ramTotal;
+        ram.setCapacidadTotal(ramTotal);
     }
 
     public int getRamUsada() {
-        return ramUsada;
+        return ram.getMemoriaUsada();
     }
 
     public int getRamLibre() {
-        return ramTotal - ramUsada;
+        return ram.getMemoriaDisponible();
     }
 
     public ModoCPU getModoCPU() {
-        return modoCPU;
+        return cpu.getModo();
     }
 
     public void setModoCPU(ModoCPU modoCPU) {
-        this.modoCPU = modoCPU;
+        cpu.setModo(modoCPU);
     }
 
     public int getQuantum() {
@@ -136,11 +141,11 @@ public class Computador implements Ciclico {
     }
 
     public Proceso getProcesoEnCPU() {
-        return procesoEnCPU;
+        return cpu.getProcesoActual();
     }
 
-    public void setProcesoEnCPU(Proceso procesoEnCPU) {
-        this.procesoEnCPU = procesoEnCPU;
+    public void setProcesoEnCPU(Proceso proceso) {
+        cpu.cargarProceso(proceso);
     }
 
     public PoliticaPlanificacionStrategy getPolitica() {
@@ -172,21 +177,18 @@ public class Computador implements Ciclico {
         return colaTerminados;
     }
 
+    /** Reserva RAM que no es de un proceso (por ejemplo la de un buffer). */
     public void reservarMemoria(int cantidad) {
-        if (cantidad < 0 || cantidad > getRamLibre()) {
+        if (!ram.reservar(cantidad)) {
             throw new IllegalStateException("No hay memoria suficiente en " + nombre);
         }
-        ramUsada += cantidad;
     }
 
     public void liberarMemoria(int cantidad) {
         if (cantidad < 0) {
             throw new IllegalArgumentException("Cantidad de memoria inválida.");
         }
-        ramUsada -= cantidad;
-        if (ramUsada < 0) {
-            ramUsada = 0;
-        }
+        ram.liberar(cantidad);
     }
 
     public Cluster getCluster() {
@@ -205,9 +207,9 @@ public class Computador implements Ciclico {
     }
 
     private void pasarABloqueados(Proceso proceso, String motivo, int ciclos) {
-        if (procesoEnCPU == proceso) {
-            procesoEnCPU = null;
-            modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+        if (cpu.getProcesoActual() == proceso) {
+            cpu.cargarProceso(null);
+            cpu.setModo(ModoCPU.SISTEMA_OPERATIVO);
         }
         proceso.setEstado(EstadoProceso.BLOQUEADO);
         proceso.setMotivoBloqueo(motivo);
@@ -316,8 +318,7 @@ public class Computador implements Ciclico {
                 break;
             }
 
-            if (proceso.getMemoriaRequerida() <= getRamLibre()) {
-                reservarMemoria(proceso.getMemoriaRequerida());
+            if (ram.asignarMemoria(proceso)) {
                 proceso.setEstado(EstadoProceso.LISTO);
                 pasarAListos(proceso);
                 admitidos++;
@@ -338,18 +339,16 @@ public class Computador implements Ciclico {
             proceso.getPrograma().alTerminar(this, proceso);
         }
 
-        if (procesoEnCPU == proceso) {
-            procesoEnCPU = null;
-            modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+        if (cpu.getProcesoActual() == proceso) {
+            cpu.cargarProceso(null);
         }
 
         colaListos.getLista().eliminar(proceso);
         colaBloqueados.getLista().eliminar(proceso);
         colaNuevos.getLista().eliminar(proceso);
 
-        if (proceso.getEstado() != EstadoProceso.NUEVO) {
-            liberarMemoria(proceso.getMemoriaRequerida());
-        }
+        // Solo libera si el proceso llego a ocupar RAM (los que esperaban en Nuevos no la tienen).
+        ram.liberarMemoria(proceso);
 
         proceso.setEstado(EstadoProceso.TERMINADO);
         proceso.setCicloFin(cicloActual);
@@ -372,14 +371,19 @@ public class Computador implements Ciclico {
         contadorIds = 0;
     }
 
+    /** Lo llama el reloj global: el computador avanza exactamente un ciclo. */
     @Override
+    public void tic(long ciclo) {
+        onTick((int) ciclo);
+    }
+
     public void onTick(int cicloGlobal) {
         cicloActual = cicloGlobal;
         ciclosTotales++;
         procesarDespertares();
         avanzarBloqueados();
 
-        if (procesoEnCPU == null) {
+        if (cpu.getProcesoActual() == null) {
             despacharSiguiente();
         } else if (nombrePolitica == PoliticaPlanificacion.PRIORIDADES
                 && hayListoConMayorPrioridad()) {
@@ -387,8 +391,8 @@ public class Computador implements Ciclico {
             despacharSiguiente();
         }
 
-        if (procesoEnCPU == null) {
-            modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+        if (cpu.getProcesoActual() == null) {
+            cpu.setModo(ModoCPU.SISTEMA_OPERATIVO);
         } else {
             ejecutarProcesoActual();
         }
@@ -397,10 +401,11 @@ public class Computador implements Ciclico {
 
     /** Ejecuta la instruccion de este ciclo con el programa del proceso y reacciona a lo que ocurra. */
     private void ejecutarProcesoActual() {
-        Proceso proceso = procesoEnCPU;
+        Proceso proceso = cpu.getProcesoActual();
         ciclosOcupados++;
         ProgramaProceso programa = (proceso.getPrograma() != null) ? proceso.getPrograma() : PROGRAMA_POR_DEFECTO;
         ResultadoCiclo resultado = programa.ejecutar(this, proceso);
+        cpu.registrarPc(proceso.getPc());
 
         switch (resultado) {
             case TERMINADO -> {
@@ -439,17 +444,17 @@ public class Computador implements Ciclico {
                 terminarProceso(proceso);
             }
         }
-        if (procesoEnCPU == null) {
+        if (cpu.getProcesoActual() == null) {
             despacharSiguiente();
         }
     }
 
     private Proceso[] procesosVivos() {
-        Proceso[] vivos = new Proceso[(procesoEnCPU == null ? 0 : 1) + colaNuevos.getTamanio()
+        Proceso[] vivos = new Proceso[(cpu.getProcesoActual() == null ? 0 : 1) + colaNuevos.getTamanio()
                 + colaListos.getTamanio() + colaBloqueados.getTamanio()];
         int i = 0;
-        if (procesoEnCPU != null) {
-            vivos[i++] = procesoEnCPU;
+        if (cpu.getProcesoActual() != null) {
+            vivos[i++] = cpu.getProcesoActual();
         }
         i = copiar(colaNuevos, vivos, i);
         i = copiar(colaListos, vivos, i);
@@ -468,22 +473,22 @@ public class Computador implements Ciclico {
     }
 
     private void desalojarProcesoActual() {
-        if (procesoEnCPU == null || politica == null) {
+        if (cpu.getProcesoActual() == null || politica == null) {
             return;
         }
-        procesoEnCPU.setEstado(EstadoProceso.LISTO);
-        politica.alLlegar(procesoEnCPU, colaListos);
-        procesoEnCPU = null;
-        modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+        cpu.getProcesoActual().setEstado(EstadoProceso.LISTO);
+        politica.alLlegar(cpu.getProcesoActual(), colaListos);
+        cpu.cargarProceso(null);
+        cpu.setModo(ModoCPU.SISTEMA_OPERATIVO);
     }
 
     private boolean hayListoConMayorPrioridad() {
-        if (procesoEnCPU == null) {
+        if (cpu.getProcesoActual() == null) {
             return false;
         }
         Nodo<Proceso> actual = colaListos.getLista().getCabeza();
         while (actual != null) {
-            if (actual.getDato().getPrioridad() > procesoEnCPU.getPrioridad()) {
+            if (actual.getDato().getPrioridad() > cpu.getProcesoActual().getPrioridad()) {
                 return true;
             }
             actual = actual.getSiguiente();
@@ -497,27 +502,27 @@ public class Computador implements Ciclico {
         }
         Proceso siguiente = politica.seleccionar(colaListos);
         if (siguiente == null) {
-            procesoEnCPU = null;
-            modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+            cpu.cargarProceso(null);
+            cpu.setModo(ModoCPU.SISTEMA_OPERATIVO);
             return;
         }
         siguiente.setEstado(EstadoProceso.EJECUCION);
         if (siguiente.getCicloPrimerDespacho() < 0) {
             siguiente.setCicloPrimerDespacho(cicloActual);
         }
-        procesoEnCPU = siguiente;
+        cpu.cargarProceso(siguiente);
         quantumRestante = quantum;
-        modoCPU = ModoCPU.USUARIO;
+        cpu.setModo(ModoCPU.USUARIO);
     }
 
     @Override
     public String toString() {
-        String cpu = (procesoEnCPU == null) ? "idle" : procesoEnCPU.getEtiqueta();
+        String enCpu = (cpu.getProcesoActual() == null) ? "idle" : cpu.getProcesoActual().getEtiqueta();
         String pol = (nombrePolitica == null) ? "sin-politica" : nombrePolitica.toString();
         return "PC" + id + "-" + nombre
-                + " [RAM " + ramUsada + "/" + ramTotal
-                + ", CPU=" + cpu
-                + ", modo=" + modoCPU
+                + " [RAM " + ram.getMemoriaUsada() + "/" + ram.getCapacidadTotal()
+                + ", CPU=" + enCpu
+                + ", modo=" + cpu.getModo()
                 + ", pol=" + pol
                 + ", q=" + quantum
                 + ", nuevos=" + colaNuevos.getTamanio()

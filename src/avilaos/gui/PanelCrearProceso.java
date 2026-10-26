@@ -115,7 +115,12 @@ public class PanelCrearProceso extends JPanel {
 
             TipoProceso tipo = (TipoProceso) cmbTipo.getSelectedItem();
             Proceso proceso = new Proceso(nombre, tipo, prioridad, memoria, deadline, instrucciones);
-            cluster.asignarProcesoManual(proceso, destino.getId());
+            cluster.adquirir();
+            try {
+                cluster.asignarProcesoManual(proceso, destino.getId());
+            } finally {
+                cluster.liberar();
+            }
             log.registrar("Se crea " + proceso.getEtiqueta() + " en " + destino.getNombre());
             ConfigProceso original = new ConfigProceso(nombre, tipo, prioridad, memoria, deadline,
                     instrucciones, cmbComputador.getSelectedIndex());

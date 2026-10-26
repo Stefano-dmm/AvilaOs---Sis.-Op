@@ -4,53 +4,50 @@
  */
 package avilaos.hardware;
 
+import avilaos.modelo.ModoCPU;
 import avilaos.modelo.Proceso;
 
 /**
+ * Procesador de un computador (base: clase de B). Solo guarda registros y modo; no decide nada:
+ * quien decide que proceso corre es el sistema operativo del computador.
  *
  * @author bethe
  */
 public class CPU {
     private int pc;           // Program Counter (Contador de programa)
     private int mar;          // Memory Address Register (Registro de direcciones de memoria)
-    private String modo;      // "USUARIO" o "SISTEMA"
+    private ModoCPU modo;     // Usuario o sistema operativo
     private Proceso procesoActual;
 
     public CPU() {
         this.pc = 0;
         this.mar = 0;
-        this.modo = "USUARIO";
+        this.modo = ModoCPU.SISTEMA_OPERATIVO;
         this.procesoActual = null;
     }
 
-    /**
-     * Se Ejecuta un ciclo de instrucción del proceso actual.
-     * Es llamado desde el computador o el reloj global.
-     */
-    public void ejecutarCiclo() {
-        if (procesoActual != null) {
-            // El proceso consume una instrucción y avanza su propio PC
-            procesoActual.ejecutarUnCiclo();
-            // El PC del procesador refleja el del proceso en ejecución
-            pc = procesoActual.getPc();
-            
-            // Si el proceso ya terminó sus instrucciones, se maneja desde el núcleo/planificador
-        }
-    }
-
+    /** Carga un proceso (restaurando sus registros) o deja la CPU libre en modo sistema si es null. */
     public void cargarProceso(Proceso p) {
         this.procesoActual = p;
         if (p != null) {
-            this.pc = p.getPc(); // O el contador inicial del proceso
-            this.modo = "USUARIO";
+            this.pc = p.getPc();
+            this.mar = p.getPc();
+            this.modo = ModoCPU.USUARIO;
         } else {
             this.pc = 0;
-            this.modo = "SISTEMA"; // Si no hay proceso, la CPU pasa a modo sistema/ociosa
+            this.mar = 0;
+            this.modo = ModoCPU.SISTEMA_OPERATIVO;
         }
     }
 
+    /** Ejecucion lineal: PC y MAR avanzan juntos, una unidad por instruccion ejecutada. */
+    public void registrarPc(int direccion) {
+        this.pc = direccion;
+        this.mar = direccion;
+    }
+
     // Getters y Setters
-    
+
     public int getPc() {
         return pc;
     }
@@ -67,11 +64,11 @@ public class CPU {
         this.mar = mar;
     }
 
-    public String getModo() {
+    public ModoCPU getModo() {
         return modo;
     }
 
-    public void setModo(String modo) {
+    public void setModo(ModoCPU modo) {
         this.modo = modo;
     }
 
