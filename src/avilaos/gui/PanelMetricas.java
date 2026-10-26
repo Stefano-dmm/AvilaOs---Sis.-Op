@@ -3,6 +3,7 @@ package avilaos.gui;
 import avilaos.estructuras.Nodo;
 import avilaos.metricas.CalculadorMetricas;
 import avilaos.metricas.HistorialUtilizacion;
+import avilaos.metricas.ResumenBuffer;
 import avilaos.metricas.ResumenMetricas;
 import avilaos.nucleo.Cluster;
 import avilaos.nucleo.Computador;
@@ -18,24 +19,31 @@ import javax.swing.table.AbstractTableModel;
 public class PanelMetricas extends JPanel {
 
     private static final String[] COLUMNAS = {
-        "Computador", "Throughput (proc/ciclo)", "Utilizacion CPU", "Respuesta prom. (ciclos)",
-        "Cumplimiento deadlines", "Equidad (Jain)", "Completados", "Terminados"
+        "Computador", "Throughput", "Utilizacion CPU", "Respuesta prom.",
+        "Cumplimiento", "Equidad (Jain)", "Bloqueo semaforos", "Completados", "Terminados"
+    };
+    private static final String[] COLUMNAS_BUFFERS = {
+        "Buffer", "Anfitrion", "Elementos producidos", "Elementos consumidos", "En el buffer", "Capacidad"
     };
 
     private final Cluster cluster;
     private final ModeloMetricas modelo = new ModeloMetricas();
+    private final ModeloBuffers modeloBuffers = new ModeloBuffers();
     private final GraficoUtilizacion grafico;
 
     public PanelMetricas(Cluster cluster, HistorialUtilizacion historial) {
         this.cluster = cluster;
         this.grafico = new GraficoUtilizacion(historial);
 
-        JTable tabla = new JTable(modelo);
-        tabla.setFillsViewportHeight(true);
-        tabla.getTableHeader().setReorderingAllowed(false);
-        JScrollPane scrollTabla = new JScrollPane(tabla);
-        scrollTabla.setBorder(BorderFactory.createTitledBorder("Metricas de rendimiento"));
+        JScrollPane scrollTabla = envolver("Metricas de rendimiento (throughput en procesos por ciclo; "
+                + "respuesta y bloqueo en ciclos; cumplimiento = deadlines cumplidos)", new JTable(modelo));
         scrollTabla.setPreferredSize(new Dimension(100, 40 + 22 * (cluster.getCantidadComputadores() + 1)));
+        JScrollPane scrollBuffers = envolver("Productor-consumidor por buffer", new JTable(modeloBuffers));
+        scrollBuffers.setPreferredSize(new Dimension(100, 90));
+
+        JPanel tablas = new JPanel(new BorderLayout(8, 8));
+        tablas.add(scrollTabla, BorderLayout.NORTH);
+        tablas.add(scrollBuffers, BorderLayout.CENTER);
 
         JPanel contenedorGrafico = new JPanel(new BorderLayout());
         contenedorGrafico.setBorder(BorderFactory.createTitledBorder("Utilizacion de CPU vs tiempo"));
@@ -43,9 +51,17 @@ public class PanelMetricas extends JPanel {
 
         setLayout(new BorderLayout(8, 8));
         setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
-        add(scrollTabla, BorderLayout.NORTH);
+        add(tablas, BorderLayout.NORTH);
         add(contenedorGrafico, BorderLayout.CENTER);
         refrescar();
+    }
+
+    private static JScrollPane envolver(String titulo, JTable tabla) {
+        tabla.setFillsViewportHeight(true);
+        tabla.getTableHeader().setReorderingAllowed(false);
+        JScrollPane scroll = new JScrollPane(tabla);
+        scroll.setBorder(BorderFactory.createTitledBorder(titulo));
+        return scroll;
     }
 
     /** Debe llamarse desde el hilo de Swing despues de cada ciclo. */
@@ -60,6 +76,7 @@ public class PanelMetricas extends JPanel {
         }
         resumenes[i] = CalculadorMetricas.global(cluster);
         modelo.reemplazar(resumenes);
+        modeloBuffers.reemplazar(CalculadorMetricas.deBuffers(cluster));
         grafico.repaint();
     }
 
@@ -105,8 +122,47 @@ public class PanelMetricas extends JPanel {
                 case 3 -> decimal(r.respuestaPromedio());
                 case 4 -> porcentaje(r.cumplimiento());
                 case 5 -> decimal(r.equidad());
-                case 6 -> r.completados();
+                case 6 -> decimal(r.bloqueoSemaforoPromedio());
+                case 7 -> r.completados();
                 default -> r.terminados();
+            };
+        }
+    }
+
+    private static class ModeloBuffers extends AbstractTableModel {
+
+        private ResumenBuffer[] filas = new ResumenBuffer[0];
+
+        void reemplazar(ResumenBuffer[] nuevas) {
+            filas = nuevas;
+            fireTableDataChanged();
+        }
+
+        @Override
+        public int getRowCount() {
+            return filas.length;
+        }
+
+        @Override
+        public int getColumnCount() {
+            return COLUMNAS_BUFFERS.length;
+        }
+
+        @Override
+        public String getColumnName(int columna) {
+            return COLUMNAS_BUFFERS[columna];
+        }
+
+        @Override
+        public Object getValueAt(int fila, int columna) {
+            ResumenBuffer r = filas[fila];
+            return switch (columna) {
+                case 0 -> r.nombre();
+                case 1 -> r.anfitrion();
+                case 2 -> r.producidos();
+                case 3 -> r.consumidos();
+                case 4 -> r.elementos();
+                default -> r.capacidad();
             };
         }
     }

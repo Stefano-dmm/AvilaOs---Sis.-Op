@@ -5,8 +5,10 @@ import avilaos.estructuras.ListaEnlazada;
 import avilaos.estructuras.Nodo;
 import avilaos.modelo.EstadoProceso;
 import avilaos.modelo.Proceso;
+import avilaos.modelo.TipoProceso;
 import avilaos.nucleo.Cluster;
 import avilaos.nucleo.Computador;
+import avilaos.sincronizacion.BufferSO;
 
 /** Calcula las metricas de rendimiento a partir del estado actual de los computadores. */
 public final class CalculadorMetricas {
@@ -32,8 +34,24 @@ public final class CalculadorMetricas {
         return acum.resumir("Sistema", ciclos);
     }
 
+    /** Elementos producidos y consumidos de cada buffer, en el orden en que se crearon. */
+    public static ResumenBuffer[] deBuffers(Cluster cluster) {
+        ResumenBuffer[] resumenes = new ResumenBuffer[cluster.getBuffers().getTamanio()];
+        int i = 0;
+        Nodo<BufferSO> actual = cluster.getBuffers().getCabeza();
+        while (actual != null) {
+            BufferSO b = actual.getDato();
+            resumenes[i++] = new ResumenBuffer(b.getNombre(), b.getAnfitrion().getNombre(),
+                    b.getProducidos(), b.getConsumidos(), b.getElementos(), b.getCapacidad());
+            actual = actual.getSiguiente();
+        }
+        return resumenes;
+    }
+
     private static final class Acumulador {
 
+        private long sumaBloqueoSemaforo;
+        private int comunicantes;
         private long ciclosOcupados;
         private long ciclosTotales;
         private int completados;
@@ -68,6 +86,10 @@ public final class CalculadorMetricas {
         }
 
         private void sumarProceso(Proceso p, int ahora) {
+            if (p.getTipo() == TipoProceso.PRODUCTOR || p.getTipo() == TipoProceso.CONSUMIDOR) {
+                sumaBloqueoSemaforo += p.getCiclosBloqueadoSemaforo();
+                comunicantes++;
+            }
             if (p.getEstado() == EstadoProceso.TERMINADO) {
                 terminados++;
                 if (p.cumplioDeadline()) {
@@ -99,8 +121,9 @@ public final class CalculadorMetricas {
             double equidad = (conFraccion > 0 && sumaFraccionCuadrado > 0)
                     ? (sumaFraccion * sumaFraccion) / (conFraccion * sumaFraccionCuadrado)
                     : Double.NaN;
+            double bloqueo = comunicantes > 0 ? (double) sumaBloqueoSemaforo / comunicantes : Double.NaN;
             return new ResumenMetricas(nombre, throughput, utilizacion, respuesta, cumplimiento,
-                    equidad, completados, terminados);
+                    equidad, bloqueo, completados, terminados);
         }
     }
 }

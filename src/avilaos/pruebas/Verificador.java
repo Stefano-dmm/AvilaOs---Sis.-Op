@@ -33,6 +33,12 @@ public final class Verificador {
         }
     }
 
+    /** Compara numeros decimales con una tolerancia pequena; NaN solo es igual a NaN. */
+    public static void casi(double esperado, double real, String nombre) {
+        boolean ok = (Double.isNaN(esperado) && Double.isNaN(real)) || Math.abs(esperado - real) < 1e-9;
+        verificar(ok, ok ? nombre : nombre + " (esperado " + esperado + ", real " + real + ")");
+    }
+
     /** Verifica que el bloque lance una excepcion de la clase indicada. */
     public static void lanza(Class<? extends RuntimeException> tipo, Runnable bloque, String nombre) {
         try {
