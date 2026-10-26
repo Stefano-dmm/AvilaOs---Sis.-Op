@@ -1,7 +1,6 @@
 package avilaos.gui;
 
 import avilaos.config.ArchivoConfiguracion;
-import avilaos.config.ConfigProceso;
 import avilaos.config.Configuracion;
 import avilaos.estructuras.Nodo;
 import avilaos.hardware.RelojGlobal;
@@ -38,6 +37,8 @@ public class VentanaPrincipal extends JFrame {
     private final RegistradorEventos registrador;
     private final HistorialUtilizacion historial;
     private PanelMetricas panelMetricas;
+    private PanelCrearProceso panelCrear;
+    private PanelBuffers panelBuffers;
     private final JLabel lblCiclo = new JLabel("Ciclo: 0");
     private final JButton btnIniciar = new JButton("Iniciar");
     private final JButton btnPaso = new JButton("Paso");
@@ -67,7 +68,10 @@ public class VentanaPrincipal extends JFrame {
     }
 
     private void construirPestanas() {
-        pestanas.addTab("Crear proceso", new PanelCrearProceso(cluster, log, this::procesoCreado));
+        panelCrear = new PanelCrearProceso(cluster, config, log, this::refrescarPaneles);
+        panelBuffers = new PanelBuffers(cluster, config, this::bufferCreado);
+        pestanas.addTab("Crear proceso", panelCrear);
+        pestanas.addTab("Buffers", panelBuffers);
         int i = 0;
         Nodo<Computador> actual = cluster.getComputadores().getCabeza();
         while (actual != null) {
@@ -148,8 +152,8 @@ public class VentanaPrincipal extends JFrame {
         });
     }
 
-    private void procesoCreado(ConfigProceso proceso) {
-        config.agregarProceso(proceso);
+    private void bufferCreado() {
+        panelCrear.recargarBuffers();
         refrescarPaneles();
     }
 
@@ -176,6 +180,7 @@ public class VentanaPrincipal extends JFrame {
             for (PanelComputador panel : paneles) {
                 panel.refrescar();
             }
+            panelBuffers.refrescar();
             panelMetricas.refrescar();
         } finally {
             cluster.liberar();

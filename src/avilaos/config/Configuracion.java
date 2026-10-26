@@ -93,6 +93,13 @@ public class Configuracion {
         if (anfitrion == null) {
             throw new IllegalArgumentException("El buffer " + b.nombre() + " apunta a un computador que no existe.");
         }
+        Nodo<ConfigBuffer> existente = buffers.getCabeza();
+        while (existente != null) {
+            if (existente.getDato().nombre().equalsIgnoreCase(b.nombre().trim())) {
+                throw new IllegalArgumentException("Ya existe un buffer llamado " + b.nombre().trim() + ".");
+            }
+            existente = existente.getSiguiente();
+        }
         validarRango("Capacidad del buffer " + b.nombre(), b.capacidad(), 1, MAX_CAPACIDAD_BUFFER);
         int memoria = memoriaDeBuffersEn(b.indiceComputador()) + b.capacidad() * BufferSO.TAMANO_ELEMENTO;
         if (memoria > anfitrion.ram()) {

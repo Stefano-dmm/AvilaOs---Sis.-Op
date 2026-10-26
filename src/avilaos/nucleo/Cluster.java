@@ -83,6 +83,13 @@ public class Cluster {
         if (nombre.contains(",")) {
             throw new IllegalArgumentException("El nombre del buffer no puede contener comas.");
         }
+        Nodo<BufferSO> existente = buffers.getCabeza();
+        while (existente != null) {
+            if (existente.getDato().getNombre().equalsIgnoreCase(nombre.trim())) {
+                throw new IllegalArgumentException("Ya existe un buffer llamado " + nombre.trim() + ".");
+            }
+            existente = existente.getSiguiente();
+        }
         if (capacidad < 1 || capacidad > MAX_CAPACIDAD_BUFFER) {
             throw new IllegalArgumentException(
                     "La capacidad del buffer debe estar entre 1 y " + MAX_CAPACIDAD_BUFFER + ".");
