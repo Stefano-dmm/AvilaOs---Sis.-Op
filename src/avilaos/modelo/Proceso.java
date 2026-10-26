@@ -1,5 +1,7 @@
 package avilaos.modelo;
 
+import avilaos.sincronizacion.SemaforoSO;
+
 public class Proceso {
 
     private static int contadorGlobal = 0;
@@ -18,6 +20,7 @@ public class Proceso {
     private int cicloLlegada = -1;
     private int cicloPrimerDespacho = -1;
     private int cicloFin = -1;
+    private volatile SemaforoSO semaforoBloqueo;
 
     public Proceso(String nombre, TipoProceso tipo, int prioridad,
                    int memoriaRequerida, int deadline, int tiempoRestante) {
@@ -151,6 +154,15 @@ public class Proceso {
     /** Ciclos que el proceso ha ejecutado en la CPU. */
     public int getCiclosEjecutados() {
         return pc;
+    }
+
+    /** Semaforo en cuya cola espera el proceso; null si no esta bloqueado en ninguno. */
+    public SemaforoSO getSemaforoBloqueo() {
+        return semaforoBloqueo;
+    }
+
+    public void setSemaforoBloqueo(SemaforoSO semaforoBloqueo) {
+        this.semaforoBloqueo = semaforoBloqueo;
     }
 
     /** Texto que explica por que esta bloqueado (por ejemplo el semaforo); null si no lo esta. */
