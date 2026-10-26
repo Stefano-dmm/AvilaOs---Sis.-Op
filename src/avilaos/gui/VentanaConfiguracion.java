@@ -1,6 +1,7 @@
 package avilaos.gui;
 
 import avilaos.config.ArchivoConfiguracion;
+import avilaos.config.ConfigBuffer;
 import avilaos.config.ConfigComputador;
 import avilaos.config.Configuracion;
 import avilaos.estructuras.ListaEnlazada;
@@ -38,6 +39,7 @@ public class VentanaConfiguracion extends JFrame {
     private final FilaComputador[] filas = new FilaComputador[Configuracion.MAX_COMPUTADORES];
     private final JLabel lblProcesos = new JLabel();
     private ListaEnlazada<ConfigProceso> procesosCargados = new ListaEnlazada<>();
+    private ListaEnlazada<ConfigBuffer> buffersCargados = new ListaEnlazada<>();
 
     public VentanaConfiguracion(Configuracion inicial, Consumer<Configuracion> alIniciar) {
         super("AvilaOS - Configuracion");
@@ -108,7 +110,9 @@ public class VentanaConfiguracion extends JFrame {
             i++;
         }
         procesosCargados = config.getProcesos();
-        lblProcesos.setText("Procesos iniciales: " + procesosCargados.getTamanio());
+        buffersCargados = config.getBuffers();
+        lblProcesos.setText("Buffers iniciales: " + buffersCargados.getTamanio()
+                + "  |  Procesos iniciales: " + procesosCargados.getTamanio());
         mostrarFilas();
     }
 
@@ -120,6 +124,11 @@ public class VentanaConfiguracion extends JFrame {
         int cantidad = (Integer) spnCantidad.getValue();
         for (int i = 0; i < cantidad; i++) {
             config.agregarComputador(filas[i].leer());
+        }
+        Nodo<ConfigBuffer> b = buffersCargados.getCabeza();
+        while (b != null) {
+            config.agregarBuffer(b.getDato());
+            b = b.getSiguiente();
         }
         Nodo<ConfigProceso> p = procesosCargados.getCabeza();
         while (p != null) {

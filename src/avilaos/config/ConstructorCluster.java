@@ -19,6 +19,7 @@ public final class ConstructorCluster {
 
         Cluster cluster = new Cluster();
         cluster.setLatenciaRed(config.getLatenciaRed());
+
         Nodo<ConfigComputador> nodoPc = config.getComputadores().getCabeza();
         while (nodoPc != null) {
             ConfigComputador c = nodoPc.getDato();
@@ -28,12 +29,22 @@ public final class ConstructorCluster {
             nodoPc = nodoPc.getSiguiente();
         }
 
+        Nodo<ConfigBuffer> nodoBuf = config.getBuffers().getCabeza();
+        while (nodoBuf != null) {
+            ConfigBuffer b = nodoBuf.getDato();
+            cluster.crearBuffer(b.nombre(), b.capacidad(), cluster.obtenerPorIndice(b.indiceComputador()).getId());
+            nodoBuf = nodoBuf.getSiguiente();
+        }
+
         Nodo<ConfigProceso> nodoPr = config.getProcesos().getCabeza();
         while (nodoPr != null) {
             ConfigProceso p = nodoPr.getDato();
-            Proceso proceso = new Proceso(p.nombre(), p.tipo(), p.prioridad(),
-                    p.memoria(), p.deadline(), p.instrucciones());
-            cluster.asignarProcesoManual(proceso, cluster.obtenerPorIndice(p.indiceComputador()).getId());
+            Proceso proceso = FabricaProcesos.crear(p, cluster);
+            if (p.indiceComputador() >= 0) {
+                cluster.asignarProcesoManual(proceso, cluster.obtenerPorIndice(p.indiceComputador()).getId());
+            } else {
+                cluster.asignarProcesoAutomatico(proceso);
+            }
             nodoPr = nodoPr.getSiguiente();
         }
         return cluster;
