@@ -23,6 +23,7 @@ public class Cluster {
         if (computador == null) {
             throw new IllegalArgumentException("El computador no puede ser null.");
         }
+        computador.setCluster(this);
         computadores.agregarAlFinal(computador);
     }
 

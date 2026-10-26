@@ -1,5 +1,6 @@
 package avilaos.modelo;
 
+import avilaos.contratos.ProgramaProceso;
 import avilaos.sincronizacion.SemaforoSO;
 
 public class Proceso {
@@ -21,6 +22,9 @@ public class Proceso {
     private int cicloPrimerDespacho = -1;
     private int cicloFin = -1;
     private volatile SemaforoSO semaforoBloqueo;
+    private ProgramaProceso programa;
+    private int bloqueoRestante = -1;
+    private int ciclosBloqueadoSemaforo;
 
     public Proceso(String nombre, TipoProceso tipo, int prioridad,
                    int memoriaRequerida, int deadline, int tiempoRestante) {
@@ -154,6 +158,33 @@ public class Proceso {
     /** Ciclos que el proceso ha ejecutado en la CPU. */
     public int getCiclosEjecutados() {
         return pc;
+    }
+
+    /** Codigo que ejecuta el proceso; null equivale a un proceso CPU bound. */
+    public ProgramaProceso getPrograma() {
+        return programa;
+    }
+
+    public void setPrograma(ProgramaProceso programa) {
+        this.programa = programa;
+    }
+
+    /** Ciclos que le faltan a un bloqueo por tiempo (E/S o red); -1 si no es un bloqueo por tiempo. */
+    public int getBloqueoRestante() {
+        return bloqueoRestante;
+    }
+
+    public void setBloqueoRestante(int bloqueoRestante) {
+        this.bloqueoRestante = bloqueoRestante;
+    }
+
+    /** Ciclos acumulados que el proceso ha pasado bloqueado en colas de semaforos. */
+    public int getCiclosBloqueadoSemaforo() {
+        return ciclosBloqueadoSemaforo;
+    }
+
+    public void sumarCicloBloqueadoSemaforo() {
+        ciclosBloqueadoSemaforo++;
     }
 
     /** Semaforo en cuya cola espera el proceso; null si no esta bloqueado en ninguno. */

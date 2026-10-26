@@ -8,6 +8,8 @@ import avilaos.modelo.EstadoProceso;
 import avilaos.modelo.ModoCPU;
 import avilaos.modelo.PoliticaPlanificacion;
 import avilaos.modelo.Proceso;
+import avilaos.sincronizacion.SemaforoSO;
+import java.util.concurrent.Semaphore;
 
 public class Computador implements Ciclico {
 
@@ -31,6 +33,10 @@ public class Computador implements Ciclico {
     private final Cola<Proceso> colaListos = new Cola<>();
     private final Cola<Proceso> colaBloqueados = new Cola<>();
     private final Cola<Proceso> colaTerminados = new Cola<>();
+
+    private Cluster cluster;
+    private final Cola<Proceso> despertares = new Cola<>();
+    private final Semaphore candadoDespertares = new Semaphore(1);
 
     public Computador(String nombre, int ramTotal, int quantum) {
         if (nombre == null || nombre.isBlank()) {
@@ -177,6 +183,112 @@ public class Computador implements Ciclico {
         if (ramUsada < 0) {
             ramUsada = 0;
         }
+    }
+
+    public Cluster getCluster() {
+        return cluster;
+    }
+
+    public void setCluster(Cluster cluster) {
+        this.cluster = cluster;
+    }
+
+    /** Avisa de una decision importante al log de eventos del cluster (si hay uno conectado). */
+    public void registrarEvento(String mensaje) {
+        if (cluster != null) {
+            cluster.registrarEvento(mensaje);
+        }
+    }
+
+    private void pasarABloqueados(Proceso proceso, String motivo, int ciclos) {
+        if (procesoEnCPU == proceso) {
+            procesoEnCPU = null;
+            modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+        }
+        proceso.setEstado(EstadoProceso.BLOQUEADO);
+        proceso.setMotivoBloqueo(motivo);
+        proceso.setBloqueoRestante(ciclos);
+        colaBloqueados.encolar(proceso);
+    }
+
+    /** El proceso ya quedo en la cola del semaforo: lo saca de la CPU y lo pasa a Bloqueado. */
+    public void bloquearPorSemaforo(Proceso proceso, String motivo) {
+        pasarABloqueados(proceso, motivo, -1);
+        registrarEvento(proceso.getEtiqueta() + " se bloquea en el " + motivo);
+    }
+
+    /** Bloqueo que termina solo despues de unos ciclos (E/S o latencia de red). */
+    public void bloquearPorTiempo(Proceso proceso, int ciclos, String motivo) {
+        // +1 porque el contador baja al comienzo de cada ciclo siguiente
+        pasarABloqueados(proceso, motivo, ciclos + 1);
+        registrarEvento(proceso.getEtiqueta() + " se bloquea: " + motivo);
+    }
+
+    /**
+     * semSignal hecho por un proceso de este computador. El proceso despertado puede vivir en otro
+     * computador (otro hilo), asi que se le avisa por su bandeja de despertares en vez de tocar sus colas.
+     */
+    public void liberarSemaforo(SemaforoSO semaforo) {
+        Proceso despertado = semaforo.semSignal();
+        if (despertado == null) {
+            return;
+        }
+        Computador destino = (cluster == null) ? null : cluster.obtenerPorId(despertado.getComputadorId());
+        (destino == null ? this : destino).recibirDespertar(despertado);
+    }
+
+    public void recibirDespertar(Proceso proceso) {
+        candadoDespertares.acquireUninterruptibly();
+        try {
+            despertares.encolar(proceso);
+        } finally {
+            candadoDespertares.release();
+        }
+    }
+
+    /** Pasa a Listos a los procesos que otro computador desperto. Se llama al comienzo de cada ciclo. */
+    public void procesarDespertares() {
+        while (true) {
+            Proceso proceso;
+            candadoDespertares.acquireUninterruptibly();
+            try {
+                proceso = despertares.desencolar();
+            } finally {
+                candadoDespertares.release();
+            }
+            if (proceso == null) {
+                return;
+            }
+            if (proceso.getEstado() == EstadoProceso.BLOQUEADO && colaBloqueados.getLista().eliminar(proceso)) {
+                desbloquear(proceso);
+                registrarEvento(proceso.getEtiqueta() + " despierta y pasa a Listos en " + nombre);
+            }
+        }
+    }
+
+    /** Baja un ciclo a los bloqueos por tiempo y cuenta el tiempo bloqueado en semaforos. */
+    public void avanzarBloqueados() {
+        int pendientes = colaBloqueados.getTamanio();
+        for (int i = 0; i < pendientes; i++) {
+            Proceso proceso = colaBloqueados.desencolar();
+            if (proceso.getBloqueoRestante() > 0) {
+                proceso.setBloqueoRestante(proceso.getBloqueoRestante() - 1);
+                if (proceso.getBloqueoRestante() == 0) {
+                    desbloquear(proceso);
+                    continue;
+                }
+            } else if (proceso.getSemaforoBloqueo() != null) {
+                proceso.sumarCicloBloqueadoSemaforo();
+            }
+            colaBloqueados.encolar(proceso);
+        }
+    }
+
+    private void desbloquear(Proceso proceso) {
+        proceso.setMotivoBloqueo(null);
+        proceso.setBloqueoRestante(-1);
+        proceso.setEstado(EstadoProceso.LISTO);
+        pasarAListos(proceso);
     }
 
     public void recibirProceso(Proceso proceso) {
