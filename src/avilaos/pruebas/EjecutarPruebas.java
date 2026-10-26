@@ -10,6 +10,7 @@ public final class EjecutarPruebas {
         PruebasSemaforos.ejecutar();
         PruebasBuffer.ejecutar();
         PruebasProgramas.ejecutar();
+        PruebasIntegracion.ejecutar();
         int fallidas = Verificador.resumen();
         if (fallidas > 0) {
             System.exit(1);

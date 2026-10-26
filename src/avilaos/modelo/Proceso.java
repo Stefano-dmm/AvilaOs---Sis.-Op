@@ -209,15 +209,12 @@ public class Proceso {
         return "P" + id + "-" + nombre;
     }
 
-    public boolean decrementarDeadline() {
+    /** Resta un ciclo al deadline y devuelve true si llego a 0; el computador es quien lo termina. */
+    public boolean descontarDeadline() {
         if (deadline > 0) {
             deadline--;
         }
-        if (deadline <= 0) {
-            estado = EstadoProceso.TERMINADO;
-            return true;
-        }
-        return false;
+        return deadline <= 0;
     }
 
     public void ejecutarUnCiclo() {

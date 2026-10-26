@@ -2,17 +2,21 @@ package avilaos.nucleo;
 
 import avilaos.contratos.Ciclico;
 import avilaos.contratos.PoliticaPlanificacionStrategy;
+import avilaos.contratos.ProgramaProceso;
 import avilaos.estructuras.Cola;
 import avilaos.estructuras.Nodo;
 import avilaos.modelo.EstadoProceso;
 import avilaos.modelo.ModoCPU;
 import avilaos.modelo.PoliticaPlanificacion;
 import avilaos.modelo.Proceso;
+import avilaos.modelo.ResultadoCiclo;
+import avilaos.nucleo.programas.ProgramaCpuBound;
 import avilaos.sincronizacion.SemaforoSO;
 import java.util.concurrent.Semaphore;
 
 public class Computador implements Ciclico {
 
+    private static final ProgramaProceso PROGRAMA_POR_DEFECTO = new ProgramaCpuBound();
     private static int contadorIds = 0;
 
     private final int id;
@@ -326,8 +330,12 @@ public class Computador implements Ciclico {
     }
 
     public void terminarProceso(Proceso proceso) {
-        if (proceso == null) {
+        if (proceso == null || colaTerminados.getLista().contiene(proceso)) {
             return;
+        }
+
+        if (proceso.getPrograma() != null) {
+            proceso.getPrograma().alTerminar(this, proceso);
         }
 
         if (procesoEnCPU == proceso) {
@@ -368,6 +376,9 @@ public class Computador implements Ciclico {
     public void onTick(int cicloGlobal) {
         cicloActual = cicloGlobal;
         ciclosTotales++;
+        procesarDespertares();
+        avanzarBloqueados();
+
         if (procesoEnCPU == null) {
             despacharSiguiente();
         } else if (nombrePolitica == PoliticaPlanificacion.PRIORIDADES
@@ -378,20 +389,31 @@ public class Computador implements Ciclico {
 
         if (procesoEnCPU == null) {
             modoCPU = ModoCPU.SISTEMA_OPERATIVO;
-            return;
+        } else {
+            ejecutarProcesoActual();
         }
+        vencerDeadlines();
+    }
 
-        modoCPU = ModoCPU.USUARIO;
+    /** Ejecuta la instruccion de este ciclo con el programa del proceso y reacciona a lo que ocurra. */
+    private void ejecutarProcesoActual() {
+        Proceso proceso = procesoEnCPU;
         ciclosOcupados++;
-        procesoEnCPU.ejecutarUnCiclo();
-        boolean porDeadline = procesoEnCPU.decrementarDeadline();
+        ProgramaProceso programa = (proceso.getPrograma() != null) ? proceso.getPrograma() : PROGRAMA_POR_DEFECTO;
+        ResultadoCiclo resultado = programa.ejecutar(this, proceso);
 
-        if (porDeadline || procesoEnCPU.estaTerminado()) {
-            terminarProceso(procesoEnCPU);
-            despacharSiguiente();
-            return;
+        switch (resultado) {
+            case TERMINADO -> {
+                registrarEvento(proceso.getEtiqueta() + " completa sus instrucciones y termina en " + nombre);
+                terminarProceso(proceso);
+                despacharSiguiente();
+            }
+            case BLOQUEADO -> despacharSiguiente();
+            case CONTINUA -> controlarQuantum();
         }
+    }
 
+    private void controlarQuantum() {
         if (nombrePolitica == PoliticaPlanificacion.ROUND_ROBIN) {
             quantumRestante--;
             if (quantumRestante <= 0) {
@@ -403,6 +425,46 @@ public class Computador implements Ciclico {
                 }
             }
         }
+    }
+
+    /**
+     * El deadline baja un ciclo por cada ciclo de reloj para todo proceso vivo (en CPU, listo,
+     * bloqueado o esperando memoria). Al llegar a 0 el proceso se termina.
+     */
+    private void vencerDeadlines() {
+        Proceso[] vivos = procesosVivos();
+        for (Proceso proceso : vivos) {
+            if (proceso.getEstado() != EstadoProceso.TERMINADO && proceso.descontarDeadline()) {
+                registrarEvento(proceso.getEtiqueta() + " llega a su deadline en " + nombre + " y es terminado");
+                terminarProceso(proceso);
+            }
+        }
+        if (procesoEnCPU == null) {
+            despacharSiguiente();
+        }
+    }
+
+    private Proceso[] procesosVivos() {
+        Proceso[] vivos = new Proceso[(procesoEnCPU == null ? 0 : 1) + colaNuevos.getTamanio()
+                + colaListos.getTamanio() + colaBloqueados.getTamanio()];
+        int i = 0;
+        if (procesoEnCPU != null) {
+            vivos[i++] = procesoEnCPU;
+        }
+        i = copiar(colaNuevos, vivos, i);
+        i = copiar(colaListos, vivos, i);
+        copiar(colaBloqueados, vivos, i);
+        return vivos;
+    }
+
+    private static int copiar(Cola<Proceso> cola, Proceso[] destino, int desde) {
+        int i = desde;
+        Nodo<Proceso> actual = cola.getLista().getCabeza();
+        while (actual != null) {
+            destino[i++] = actual.getDato();
+            actual = actual.getSiguiente();
+        }
+        return i;
     }
 
     private void desalojarProcesoActual() {

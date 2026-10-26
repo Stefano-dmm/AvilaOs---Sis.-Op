@@ -33,11 +33,8 @@ public class RegistradorEventos {
         Proceso anterior = enCpuAnterior[indice];
         Proceso actual = pc.getProcesoEnCPU();
 
-        if (anterior != null && anterior.getEstado() == EstadoProceso.TERMINADO) {
-            String causa = anterior.getTiempoRestante() > 0
-                    ? "por llegar a su deadline" : "al completar sus instrucciones";
-            log.registrar(anterior.getEtiqueta() + " termina en " + pc.getNombre() + " " + causa);
-        } else if (anterior != null && anterior != actual) {
+        // Terminaciones y bloqueos los registra el propio computador; aqui solo los cambios de CPU.
+        if (anterior != null && anterior != actual && anterior.getEstado() == EstadoProceso.LISTO) {
             log.registrar(pc.getNombre() + " desaloja a " + anterior.getEtiqueta());
         }
         if (actual != null && actual != anterior) {
