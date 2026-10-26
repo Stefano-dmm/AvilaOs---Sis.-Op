@@ -1,9 +1,11 @@
 package avilaos.nucleo;
 
+import avilaos.contratos.CriterioAsignacion;
 import avilaos.estructuras.ListaEnlazada;
 import avilaos.estructuras.Nodo;
 import avilaos.hardware.RelojGlobal;
 import avilaos.modelo.Proceso;
+import avilaos.nucleo.balanceo.MenorCarga;
 import avilaos.sincronizacion.BufferSO;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
@@ -19,6 +21,7 @@ public class Cluster {
     private volatile Consumer<String> oyenteEventos;
     private int latenciaRed;
     private int contadorBuffers;
+    private CriterioAsignacion criterio = new MenorCarga();
 
     public void agregarComputador(Computador computador) {
         if (computador == null) {
@@ -113,6 +116,34 @@ public class Cluster {
         }
 
         destino.recibirProceso(proceso);
+    }
+
+    /** AvilaOS elige el computador con el criterio de balanceo y le entrega el proceso. */
+    public Computador asignarProcesoAutomatico(Proceso proceso) {
+        if (proceso == null) {
+            throw new IllegalArgumentException("El proceso no puede ser null.");
+        }
+        if (proceso.getComputadorId() != -1) {
+            throw new IllegalStateException(
+                    "El proceso " + proceso.getEtiqueta() + " ya fue asignado al PC "
+                            + proceso.getComputadorId() + " (sin migracion).");
+        }
+        Computador destino = criterio.elegir(computadores, proceso);
+        registrarEvento("AvilaOS asigna " + proceso.getEtiqueta() + " a " + destino.getNombre()
+                + " (" + destino.getCargaActual() + " procesos activos antes de la llegada)");
+        destino.recibirProceso(proceso);
+        return destino;
+    }
+
+    public CriterioAsignacion getCriterio() {
+        return criterio;
+    }
+
+    public void setCriterio(CriterioAsignacion criterio) {
+        if (criterio == null) {
+            throw new IllegalArgumentException("El criterio de asignacion no puede ser null.");
+        }
+        this.criterio = criterio;
     }
 
     public void onTickGlobal(int cicloGlobal) {

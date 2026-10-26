@@ -12,6 +12,7 @@ public final class EjecutarPruebas {
         PruebasProgramas.ejecutar();
         PruebasIntegracion.ejecutar();
         PruebasReloj.ejecutar();
+        PruebasBalanceo.ejecutar();
         int fallidas = Verificador.resumen();
         if (fallidas > 0) {
             System.exit(1);

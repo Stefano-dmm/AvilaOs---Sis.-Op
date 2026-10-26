@@ -88,6 +88,12 @@ public class Computador implements Clockable {
         return ciclosOcupados;
     }
 
+    /** Procesos vivos de este computador: en CPU, listos, bloqueados y esperando memoria. */
+    public int getCargaActual() {
+        return (cpu.getProcesoActual() == null ? 0 : 1) + colaNuevos.getTamanio()
+                + colaListos.getTamanio() + colaBloqueados.getTamanio();
+    }
+
     public CPU getCpu() {
         return cpu;
     }
