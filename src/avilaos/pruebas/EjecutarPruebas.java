@@ -8,6 +8,7 @@ public final class EjecutarPruebas {
 
     public static void main(String[] args) throws Exception {
         PruebasSemaforos.ejecutar();
+        PruebasBuffer.ejecutar();
         int fallidas = Verificador.resumen();
         if (fallidas > 0) {
             System.exit(1);
