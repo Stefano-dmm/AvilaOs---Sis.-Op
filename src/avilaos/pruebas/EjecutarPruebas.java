@@ -16,6 +16,7 @@ public final class EjecutarPruebas {
         PruebasConfiguracion.ejecutar();
         PruebasFormularios.ejecutar();
         PruebasMetricas.ejecutar();
+        PruebasPoliticas.ejecutar();
         int fallidas = Verificador.resumen();
         if (fallidas > 0) {
             System.exit(1);
