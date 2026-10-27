@@ -8,6 +8,7 @@ import avilaos.sincronizacion.BufferSO;
 /** Parametros de una simulacion: lo que se guarda y se carga desde archivo. */
 public class Configuracion {
 
+    /** Limites de validacion de los parametros: la interfaz y los archivos de configuracion los comparten. */
     public static final int MIN_COMPUTADORES = 2;
     public static final int MAX_COMPUTADORES = 8;
     public static final int MIN_CICLO_MS = 50;
@@ -23,12 +24,18 @@ public class Configuracion {
     public static final int MAX_INTERVALO = 1000;
     public static final int MAX_ELEMENTOS = 10000;
 
+    /** Duracion de un ciclo de reloj, en milisegundos. */
     private int cicloMs = 500;
+    /** Ciclos extra por acceso a un buffer remoto. */
     private int latenciaRed = 2;
+    /** Computadores configurados, en orden; la posicion es el indice que usan buffers y procesos. */
     private final ListaEnlazada<ConfigComputador> computadores = new ListaEnlazada<>();
+    /** Buffers configurados, en orden; la posicion es el indice que usan los procesos productores y consumidores. */
     private final ListaEnlazada<ConfigBuffer> buffers = new ListaEnlazada<>();
+    /** Procesos iniciales (los que se guardan en el archivo para repetir la simulacion). */
     private final ListaEnlazada<ConfigProceso> procesos = new ListaEnlazada<>();
 
+    /** Configuracion inicial: dos computadores, uno con FCFS y otro con Round Robin, sin procesos ni buffers. */
     public static Configuracion porDefecto() {
         Configuracion c = new Configuracion();
         c.agregarComputador(new ConfigComputador("Nodo-A", 512, PoliticaPlanificacion.FCFS, 3));
@@ -66,6 +73,7 @@ public class Configuracion {
         return procesos;
     }
 
+    /** Agrega un computador validando nombre, RAM, quantum y politica. */
     public void agregarComputador(ConfigComputador pc) {
         if (pc.nombre() == null || pc.nombre().isBlank()) {
             throw new IllegalArgumentException("El nombre del computador no puede estar vacio.");
@@ -109,6 +117,7 @@ public class Configuracion {
         buffers.agregarAlFinal(b);
     }
 
+    /** RAM que ya ocupan los buffers configurados en un computador. */
     private int memoriaDeBuffersEn(int indiceComputador) {
         int total = 0;
         Nodo<ConfigBuffer> actual = buffers.getCabeza();
@@ -121,6 +130,10 @@ public class Configuracion {
         return total;
     }
 
+    /**
+     * Agrega un proceso inicial validando nombre, tipo, memoria (contra la RAM de su computador), prioridad, deadline y los campos
+     * propios de su tipo (E/S, buffer, ciclos y elementos).
+     */
     public void agregarProceso(ConfigProceso p) {
         if (p.nombre() == null || p.nombre().isBlank()) {
             throw new IllegalArgumentException("El nombre del proceso no puede estar vacio.");
@@ -174,6 +187,7 @@ public class Configuracion {
         return destino.ram();
     }
 
+    /** Comprueba las reglas de toda la configuracion (cantidad de computadores). */
     public void validarCompleta() {
         if (computadores.getTamanio() < MIN_COMPUTADORES) {
             throw new IllegalArgumentException("Se necesitan al menos " + MIN_COMPUTADORES + " computadores.");
@@ -183,6 +197,7 @@ public class Configuracion {
         }
     }
 
+    /** Lanza IllegalArgumentException con un mensaje claro si el valor esta fuera del rango. */
     public static void validarRango(String campo, int valor, int min, int max) {
         if (valor < min || valor > max) {
             throw new IllegalArgumentException(campo + " debe estar entre " + min + " y " + max + ".");

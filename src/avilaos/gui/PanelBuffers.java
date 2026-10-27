@@ -43,6 +43,7 @@ public class PanelBuffers extends JPanel {
     private final JComboBox<String> cmbAnfitrion = new JComboBox<>();
     private final ModeloBuffers modelo = new ModeloBuffers();
 
+    /** Arma el formulario de creacion de buffers y la tabla de estado. */
     public PanelBuffers(Cluster cluster, Configuracion config, Runnable alCrear) {
         this.cluster = cluster;
         this.config = config;
@@ -80,6 +81,7 @@ public class PanelBuffers extends JPanel {
         refrescar();
     }
 
+    /** Valida los datos y crea el buffer en el cluster (con el cerrojo tomado); si no cabe en la RAM del anfitrion se avisa sin romper la simulacion. */
     private void crear() {
         try {
             ConfigBuffer datos = LectorFormulario.buffer(txtNombre.getText(),
@@ -117,6 +119,7 @@ public class PanelBuffers extends JPanel {
         modelo.reemplazar(filas);
     }
 
+    /** Texto con los procesos bloqueados en cada uno de los tres semaforos del buffer. */
     private static String bloqueados(BufferSO b) {
         StringBuilder sb = new StringBuilder();
         agregar(sb, b.getVacios());
@@ -125,6 +128,7 @@ public class PanelBuffers extends JPanel {
         return sb.length() == 0 ? "-" : sb.toString();
     }
 
+    /** Agrega al texto los procesos que esperan en un semaforo, si hay alguno. */
     private static void agregar(StringBuilder sb, SemaforoSO semaforo) {
         String espera = semaforo.describirEspera();
         if (!espera.isEmpty()) {

@@ -18,6 +18,7 @@ import avilaos.nucleo.Computador;
  */
 public class MenorCarga implements CriterioAsignacion {
 
+    /** Recorre los computadores, descarta los que no pueden admitir al proceso y se queda con el mejor segun las reglas de la clase. */
     @Override
     public Computador elegir(ListaEnlazada<Computador> computadores, Proceso proceso) {
         Computador mejor = null;
@@ -36,6 +37,7 @@ public class MenorCarga implements CriterioAsignacion {
         return mejor;
     }
 
+    /** Compara por carga, luego por RAM libre y luego por id. */
     private static boolean esMejor(Computador candidato, Computador actualMejor) {
         if (actualMejor == null) {
             return true;

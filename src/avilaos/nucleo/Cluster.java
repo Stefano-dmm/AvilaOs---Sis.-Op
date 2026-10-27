@@ -10,19 +10,44 @@ import avilaos.sincronizacion.BufferSO;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 
+/**
+ * El cluster: el conjunto de computadores y de buffers, mas lo que es comun a todos (latencia de red, criterio de
+ * balanceo, log de eventos y el cerrojo del estado compartido). Es quien crea el reloj global y asigna los
+ * procesos a los computadores. La interfaz grafica solo lo observa y lo modifica a traves de sus metodos.
+ *
+ * <p><b>Concurrencia.</b> El Cluster no tiene hilos propios; el que protege su estado es cerrojo: el reloj lo
+ * mantiene tomado durante cada ciclo y la interfaz lo toma antes de leer o cambiar algo, asi nunca se
+ * mezclan. Las listas computadores y buffers solo cambian desde la interfaz (con el cerrojo tomado) o al
+ * construir el cluster.
+ */
 public class Cluster {
 
+    /** Capacidad maxima de un buffer (huecos). */
     public static final int MAX_CAPACIDAD_BUFFER = 1000;
+    /** Latencia de red maxima configurable, en ciclos. */
     public static final int MAX_LATENCIA_RED = 1000;
 
+    /** Los computadores del cluster, en el orden en que se agregaron (el indice 0 es el primero). */
     private final ListaEnlazada<Computador> computadores = new ListaEnlazada<>();
+    /** Los buffers del productor-consumidor, en el orden en que se crearon. */
     private final ListaEnlazada<BufferSO> buffers = new ListaEnlazada<>();
+    /**
+     * CERROJO DEL ESTADO COMPARTIDO. Semaphore de Java con un permiso: el RelojGlobal lo mantiene tomado durante cada
+     * ciclo (los hilos de los computadores corren dentro de ese ciclo) y la interfaz lo toma antes de leer o
+     * modificar cualquier cosa. Asi la interfaz nunca ve ni cambia un ciclo a medias. No es reentrante: quien
+     * lo tiene tomado no debe volver a tomarlo.
+     */
     private final Semaphore cerrojo = new Semaphore(1);
+    /** Quien recibe los mensajes del log (la ventana); volatile porque lo cambia la interfaz y lo leen los hilos de los computadores. */
     private volatile Consumer<String> oyenteEventos;
+    /** Ciclos extra que cuesta cada acceso a un buffer que vive en otro computador. */
     private int latenciaRed;
+    /** Cantidad de buffers creados, para darles numeros de creacion. */
     private int contadorBuffers;
+    /** Criterio de balanceo de carga para la asignacion automatica (intercambiable); por defecto, menor carga. */
     private CriterioAsignacion criterio = new MenorCarga();
 
+    /** Agrega un computador al cluster y le dice a cual pertenece. */
     public void agregarComputador(Computador computador) {
         if (computador == null) {
             throw new IllegalArgumentException("El computador no puede ser null.");
@@ -39,6 +64,7 @@ public class Cluster {
         return computadores;
     }
 
+    /** Busca un computador por su id; null si no existe. */
     public Computador obtenerPorId(int computadorId) {
         Nodo<Computador> actual = computadores.getCabeza();
         while (actual != null) {
@@ -50,6 +76,7 @@ public class Cluster {
         return null;
     }
 
+    /** Devuelve el computador en la posicion dada (desde 0), o null. */
     public Computador obtenerPorIndice(int indice) {
         return computadores.obtener(indice);
     }
@@ -71,6 +98,7 @@ public class Cluster {
         return buffers;
     }
 
+    /** Devuelve el buffer en la posicion dada (desde 0), o null. */
     public BufferSO obtenerBuffer(int indice) {
         return buffers.obtener(indice);
     }
@@ -107,6 +135,7 @@ public class Cluster {
         return buffer;
     }
 
+    /** Entrega el proceso al computador elegido por el usuario. Un proceso ya asignado no se reasigna (no hay migracion). */
     public void asignarProcesoManual(Proceso proceso, int computadorId) {
         if (proceso == null) {
             throw new IllegalArgumentException("El proceso no puede ser null.");
@@ -153,6 +182,10 @@ public class Cluster {
         this.criterio = criterio;
     }
 
+    /**
+     * Avanza un ciclo a TODOS los computadores uno detras de otro, sin hilos. Es la version determinista que usan las
+     * pruebas y los experimentos; en la aplicacion los avanza el RelojGlobal con un hilo por computador.
+     */
     public void onTickGlobal(int cicloGlobal) {
         Nodo<Computador> actual = computadores.getCabeza();
         while (actual != null) {
@@ -166,6 +199,7 @@ public class Cluster {
         this.oyenteEventos = oyente;
     }
 
+    /** Envia un mensaje al log de eventos si hay alguien escuchando. Lo pueden llamar los hilos de todos los computadores. */
     public void registrarEvento(String mensaje) {
         Consumer<String> oyente = oyenteEventos;
         if (oyente != null) {
@@ -193,6 +227,7 @@ public class Cluster {
         cerrojo.acquireUninterruptibly();
     }
 
+    /** Suelta el cerrojo del estado compartido. */
     public void liberar() {
         cerrojo.release();
     }

@@ -9,9 +9,14 @@ import avilaos.nucleo.politicas.FabricaPoliticas;
 /** Convierte una Configuracion en un Cluster listo para simular. */
 public final class ConstructorCluster {
 
+    /** Clase de utilidades: no se instancia. */
     private ConstructorCluster() {
     }
 
+    /**
+     * Arma un cluster listo para simular a partir de la configuracion: crea los computadores con su politica, los buffers en su
+     * anfitrion y los procesos (manual o por balanceo). Reinicia los contadores de ids.
+     */
     public static Cluster construir(Configuracion config) {
         config.validarCompleta();
         Computador.reiniciarContadorIds();

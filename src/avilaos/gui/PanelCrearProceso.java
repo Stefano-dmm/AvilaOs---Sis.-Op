@@ -53,6 +53,7 @@ public class PanelCrearProceso extends JPanel {
     private final JLabel lblBuffer = new JLabel("Buffer:");
     private final JComboBox<String> cmbBuffer = new JComboBox<>();
 
+    /** Arma el formulario de la Vista 1. */
     public PanelCrearProceso(Cluster cluster, Configuracion config, LogEventos log, Runnable alCrear) {
         this.cluster = cluster;
         this.config = config;
@@ -66,6 +67,7 @@ public class PanelCrearProceso extends JPanel {
         actualizarCampos();
     }
 
+    /** Distribuye las etiquetas y los campos del formulario. */
     private JPanel construirFormulario() {
         JPanel form = new JPanel(new GridBagLayout());
         form.setBorder(BorderFactory.createTitledBorder("Nuevo proceso"));
@@ -95,6 +97,7 @@ public class PanelCrearProceso extends JPanel {
         return form;
     }
 
+    /** Agrega una fila (etiqueta y campo) al formulario. */
     private static void agregarFila(JPanel form, GridBagConstraints c, int fila, JLabel etiqueta, Component campo) {
         c.gridx = 0;
         c.gridy = fila;
@@ -123,11 +126,13 @@ public class PanelCrearProceso extends JPanel {
         repaint();
     }
 
+    /** Muestra u oculta una etiqueta con su campo. */
     private static void mostrar(JLabel etiqueta, Component campo, boolean visible) {
         etiqueta.setVisible(visible);
         campo.setVisible(visible);
     }
 
+    /** Llena la lista de computadores; la primera opcion es la asignacion automatica. */
     private void cargarComputadores() {
         cmbComputador.addItem("Automatico (balanceo de carga)");
         Nodo<Computador> actual = cluster.getComputadores().getCabeza();
@@ -153,6 +158,10 @@ public class PanelCrearProceso extends JPanel {
         }
     }
 
+    /**
+     * Crea el proceso: valida los campos (LectorFormulario), crea el proceso, lo registra en la configuracion (que valida la memoria)
+     * y recien entonces lo entrega al cluster con el cerrojo tomado. Cualquier dato invalido se avisa sin romper la simulacion.
+     */
     private void crear() {
         try {
             int indiceComputador = cmbComputador.getSelectedIndex() - 1;
@@ -184,6 +193,7 @@ public class PanelCrearProceso extends JPanel {
         }
     }
 
+    /** Limpia los campos tras crear un proceso. */
     private void limpiar() {
         txtNombre.setText("");
         txtMemoria.setText("");

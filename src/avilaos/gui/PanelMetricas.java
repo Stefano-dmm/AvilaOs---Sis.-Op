@@ -31,6 +31,7 @@ public class PanelMetricas extends JPanel {
     private final ModeloBuffers modeloBuffers = new ModeloBuffers();
     private final GraficoUtilizacion grafico;
 
+    /** Arma las dos tablas y el grafico. */
     public PanelMetricas(Cluster cluster, HistorialUtilizacion historial) {
         this.cluster = cluster;
         this.grafico = new GraficoUtilizacion(historial);
@@ -56,6 +57,7 @@ public class PanelMetricas extends JPanel {
         refrescar();
     }
 
+    /** Pone una tabla dentro de un panel con titulo. */
     private static JScrollPane envolver(String titulo, JTable tabla) {
         tabla.setFillsViewportHeight(true);
         tabla.getTableHeader().setReorderingAllowed(false);
@@ -80,10 +82,12 @@ public class PanelMetricas extends JPanel {
         grafico.repaint();
     }
 
+    /** Formato de un decimal; un valor que no se puede calcular todavia se muestra como un guion. */
     private static String decimal(double valor) {
         return Double.isNaN(valor) ? "-" : String.format("%.2f", valor);
     }
 
+    /** Formato de una fraccion como porcentaje; un valor que no se puede calcular todavia se muestra como un guion. */
     private static String porcentaje(double valor) {
         return Double.isNaN(valor) ? "-" : String.format("%.1f%%", valor * 100);
     }

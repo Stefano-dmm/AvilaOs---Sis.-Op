@@ -31,6 +31,20 @@ El sistema está organizado en capas; cada una conoce solo a la de abajo, y la i
 
 **Bandeja de despertares.** Cuando un proceso hace `semSignal` y despierta a otro que vive en otro computador, no toca las colas del otro computador (eso sería una carrera entre hilos): le deja el aviso en una bandeja protegida por un semáforo, y el otro computador la procesa al comienzo de su siguiente ciclo, como una interrupción.
 
+**Mapa de concurrencia: qué protege cada semáforo de Java.** Hay dos niveles de semáforos que no deben confundirse: los `SemaforoSO` (`vacios`, `llenos`, `mutex`) son los semáforos *simulados* del sistema operativo y bloquean a los *procesos*; los `Semaphore` de Java de la tabla protegen las *estructuras de datos del simulador* entre los hilos.
+
+| Semáforo de Java | Qué protege o señala |
+|---|---|
+| `Cluster.cerrojo` | Todo el estado de la simulación (colas, CPU, RAM, procesos, buffers). El reloj lo mantiene tomado durante cada ciclo y la interfaz lo toma para leer o modificar |
+| `RelojGlobal.candadoSuscriptores` | La lista de computadores suscritos al reloj |
+| `RelojGlobal.pasos` | Señalización: un permiso es un ciclo pendiente cuando el reloj está en pausa |
+| `Suscriptor.inicio` y `Suscriptor.fin` | Señalización: inicio del ciclo de un computador y barrera de fin de ciclo (el reloj espera a todos) |
+| `Computador.candadoDespertares` | La bandeja de despertares de un computador (la escriben otros computadores) |
+| `SemaforoSO.candado` | El valor y la cola de espera de un semáforo del SO |
+| `BufferSO.candado` | Los contadores de elementos, producidos y consumidos de un buffer |
+
+Las colas de un computador (nuevos, listos, bloqueados y terminados) no necesitan semáforo propio: las toca solo el hilo de ese computador durante su ciclo, y la interfaz solo cuando tiene el cerrojo del cluster. El detalle completo (quién protege cada estructura, qué apunta cada puntero, un ciclo paso a paso y reglas para modificar el código) está en `docs/Guia_del_codigo.md`; además, todo el código fuente está documentado con Javadoc en cada clase, campo y método importante.
+
 ## 3. Enumeraciones
 
 | Enum | Valores | Para qué se usa |

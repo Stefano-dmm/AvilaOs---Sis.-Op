@@ -5,8 +5,14 @@ import avilaos.estructuras.Cola;
 import avilaos.estructuras.Nodo;
 import avilaos.modelo.Proceso;
 
+/**
+ * Prioridades apropiativas: va primero el proceso de mayor prioridad (numero mas alto) y, si llega o despierta
+ * uno de mayor prioridad que el de la CPU, el Computador se la quita de inmediato. A igual prioridad se
+ * respeta el orden de llegada. Los de baja prioridad pueden tardar mucho (inanicion).
+ */
 public class PrioridadesApropiativas implements PoliticaPlanificacionStrategy {
 
+    /** Busca el proceso de mayor prioridad y lo saca de la cola. */
     @Override
     public Proceso seleccionar(Cola<Proceso> listos) {
         if (listos == null || listos.estaVacia()) {
@@ -27,6 +33,7 @@ public class PrioridadesApropiativas implements PoliticaPlanificacionStrategy {
         return elegido;
     }
 
+    /** Inserta el proceso en su lugar segun la prioridad (despues de los de igual o mayor prioridad). */
     @Override
     public void alLlegar(Proceso proceso, Cola<Proceso> listos) {
         if (proceso == null || listos == null) {

@@ -35,6 +35,7 @@ public class PanelComputador extends JPanel {
     private final LogEventos log;
     private boolean actualizando;
 
+    /** Arma la vista de un computador y la conecta a su politica y quantum. */
     public PanelComputador(Computador computador, LogEventos log) {
         this.computador = computador;
         this.log = log;
@@ -47,6 +48,7 @@ public class PanelComputador extends JPanel {
         refrescar();
     }
 
+    /** Cabecera: selector de politica y quantum, modo de la CPU con PC y MAR, y barra de RAM. */
     private JPanel crearCabecera() {
         JPanel cabecera = new JPanel(new GridLayout(3, 1, 4, 4));
         cabecera.setBorder(BorderFactory.createTitledBorder(
@@ -65,6 +67,7 @@ public class PanelComputador extends JPanel {
         return cabecera;
     }
 
+    /** Cuerpo: proceso en CPU y las cuatro colas, cada una con todos los elementos del PCB. */
     private JPanel crearCuerpo() {
         JScrollPane scrollCpu = envolver("Proceso en CPU", tablaCpu);
         scrollCpu.setPreferredSize(new Dimension(100, 85));
@@ -81,6 +84,7 @@ public class PanelComputador extends JPanel {
         return cuerpo;
     }
 
+    /** Cambios de politica y de quantum: se aplican al computador esperando el cerrojo del cluster. */
     private void conectarControles() {
         cmbPolitica.addActionListener(e -> {
             if (actualizando) {
@@ -145,6 +149,7 @@ public class PanelComputador extends JPanel {
         }
     }
 
+    /** Pone una tabla dentro de un panel con titulo y barra de desplazamiento. */
     private static JScrollPane envolver(String titulo, TablaProcesos tabla) {
         JScrollPane scroll = new JScrollPane(tabla);
         scroll.setBorder(BorderFactory.createTitledBorder(titulo));

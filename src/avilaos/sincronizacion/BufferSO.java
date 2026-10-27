@@ -13,18 +13,37 @@ public class BufferSO {
     /** Unidades de RAM que ocupa cada hueco del buffer en su anfitrion. */
     public static final int TAMANO_ELEMENTO = 4;
 
+    /** Numero de creacion del buffer, unico en el cluster. */
     private final int id;
+    /** Nombre mostrado en la interfaz y en el log (por ejemplo B1). */
     private final String nombre;
+    /** Cantidad maxima de elementos; el buffer ocupa capacidad * TAMANO_ELEMENTO unidades de RAM del anfitrion. */
     private final int capacidad;
+    /** Computador en cuya RAM vive el buffer. Los procesos de otros computadores acceden de forma remota (con latencia de red). */
     private final Computador anfitrion;
+    /** Semaforo de CONTEO de huecos libres; arranca en capacidad. El productor hace semWait(vacios) antes de insertar. */
     private final SemaforoSO vacios;
+    /** Semaforo de CONTEO de elementos disponibles; arranca en 0. El consumidor hace semWait(llenos) antes de extraer. */
     private final SemaforoSO llenos;
+    /**
+     * Semaforo BINARIO que da exclusion mutua a la region critica simulada (insertar y extraer). Es lo que
+     * protege el buffer entre los PROCESOS simulados; no es el mismo que candado.
+     */
     private final SemaforoSO mutex;
+    /**
+     * Semaphore de Java que protege los contadores elementos, producidos y consumidos para que otros hilos (la
+     * interfaz o las metricas) los lean sin ver valores a medias. La exclusion entre procesos simulados la da
+     * el semaforo mutex, no este candado.
+     */
     private final Semaphore candado = new Semaphore(1);
+    /** Elementos que hay ahora en el buffer (0 a capacidad). Protegido por candado. */
     private int elementos;
+    /** Total de elementos insertados desde que existe el buffer (metrica). Protegido por candado. */
     private int producidos;
+    /** Total de elementos extraidos desde que existe el buffer (metrica). Protegido por candado. */
     private int consumidos;
 
+    /** Crea el buffer con sus tres semaforos: vacios en capacidad, llenos en 0 y mutex en 1. */
     public BufferSO(int id, String nombre, int capacidad, Computador anfitrion) {
         if (nombre == null || nombre.isBlank()) {
             throw new IllegalArgumentException("El buffer necesita un nombre.");

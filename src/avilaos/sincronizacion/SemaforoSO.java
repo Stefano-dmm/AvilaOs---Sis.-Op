@@ -13,12 +13,28 @@ import java.util.concurrent.Semaphore;
  */
 public class SemaforoSO {
 
+    /** Nombre que se muestra en la interfaz y en el motivo de bloqueo (por ejemplo vacios, llenos o mutex). */
     private final String nombre;
+    /** CONTEO (varias unidades) o BINARIO (mutex: nunca pasa de 1). */
     private final TipoSemaforo tipo;
+    /**
+     * Unidades disponibles. Si es negativo, su valor absoluto es la cantidad de procesos esperando en la cola
+     * (algoritmo clasico de Stallings). Solo se lee o escribe con candado tomado.
+     */
     private int valor;
+    /**
+     * COLA DEL SEMAFORO: procesos bloqueados aqui, en orden de llegada (FIFO). Cada proceso de esta cola
+     * apunta de vuelta al semaforo con Proceso.semaforoBloqueo. Protegida por candado.
+     */
     private final Cola<Proceso> espera = new Cola<>();
+    /**
+     * Semaphore de Java que da exclusion mutua sobre valor y espera. Es necesario porque semWait, semSignal
+     * y cancelarEspera pueden llamarse a la vez desde hilos de computadores distintos (cada Computador corre en
+     * su propio hilo). Es el cerrojo del semaforo simulado, no el semaforo simulado en si.
+     */
     private final Semaphore candado = new Semaphore(1);
 
+    /** Crea un semaforo; un semaforo binario solo admite valor inicial 0 o 1. */
     public SemaforoSO(String nombre, TipoSemaforo tipo, int valorInicial) {
         if (nombre == null || nombre.isBlank()) {
             throw new IllegalArgumentException("El semaforo necesita un nombre.");

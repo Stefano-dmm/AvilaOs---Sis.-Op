@@ -13,15 +13,18 @@ import avilaos.sincronizacion.BufferSO;
 /** Calcula las metricas de rendimiento a partir del estado actual de los computadores. */
 public final class CalculadorMetricas {
 
+    /** Clase de utilidades: no se instancia. */
     private CalculadorMetricas() {
     }
 
+    /** Metricas de un computador, calculadas recorriendo sus procesos (en CPU, nuevos, listos, bloqueados y terminados). */
     public static ResumenMetricas deComputador(Computador pc) {
         Acumulador acum = new Acumulador();
         acum.sumar(pc);
         return acum.resumir("PC" + pc.getId() + " " + pc.getNombre(), pc.getCiclosTotales());
     }
 
+    /** Metricas de todo el sistema: suma los procesos y los ciclos de todos los computadores. */
     public static ResumenMetricas global(Cluster cluster) {
         Acumulador acum = new Acumulador();
         int ciclos = 0;

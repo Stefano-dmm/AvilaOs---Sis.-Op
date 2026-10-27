@@ -16,32 +16,80 @@ import avilaos.nucleo.programas.ProgramaCpuBound;
 import avilaos.sincronizacion.SemaforoSO;
 import java.util.concurrent.Semaphore;
 
+/**
+ * Un computador del cluster: la unidad reutilizable de AvilaOS. Reune hardware (CPU y RAM) y un nucleo de
+ * sistema operativo con planificador y colas. Todos los computadores son instancias de esta misma clase;
+ * agregar uno al cluster es crear otra instancia.
+ *
+ * <p><b>Modelo de hilos.</b> Cada Computador corre en su propio hilo, que el RelojGlobal despierta una vez
+ * por ciclo (tic). Durante un tic ese hilo es el unico que toca las colas, la CPU, la RAM y los procesos de
+ * este computador, y la interfaz no puede tocarlos porque el reloj mantiene tomado el cerrojo del Cluster.
+ * Lo unico que otros hilos hacen sobre un Computador mientras corre es dejar avisos en su bandeja de
+ * despertares (protegida por candadoDespertares) y operar los SemaforoSO y BufferSO, que tienen sus propios
+ * candados.
+ *
+ * <p><b>Que protege a que:</b>
+ * <ul>
+ * <li>colaNuevos, colaListos, colaBloqueados, colaTerminados, cpu y ram: el hilo de este computador
+ * (y la interfaz solo con el cerrojo del Cluster tomado, es decir, nunca a la vez que un tic);</li>
+ * <li>despertares: candadoDespertares, porque la escriben otros computadores y la lee este;</li>
+ * <li>cada SemaforoSO y cada BufferSO: su propio candado.</li>
+ * </ul>
+ */
 public class Computador implements Clockable {
 
+    /** Programa de los procesos que no traen uno propio: se comportan como CPU bound. Es sin estado, asi que se comparte. */
     private static final ProgramaProceso PROGRAMA_POR_DEFECTO = new ProgramaCpuBound();
+    /** Contador para dar un id distinto a cada computador del sistema. */
     private static int contadorIds = 0;
 
+    /** Id unico del computador; los procesos y buffers lo usan para referirse a el. */
     private final int id;
+    /** Nombre mostrado en la interfaz y en el log. */
     private String nombre;
+    /** Procesador de este computador: guarda el proceso en ejecucion, el modo y los registros PC y MAR. */
     private final CPU cpu = new CPU();
+    /** Memoria principal: lleva la cuenta de la memoria usada y libre (procesos y buffers). */
     private final RAM ram;
+    /** Quantum de Round Robin: ciclos que un proceso puede usar la CPU antes de ceder el turno. Se puede cambiar en ejecucion. */
     private int quantum;
+    /** Ciclos que le quedan al proceso actual de su quantum. */
     private int quantumRestante;
+    /** Estrategia que decide el orden de la cola de listos y que proceso va a la CPU (interfaz: se puede cambiar en ejecucion). */
     private PoliticaPlanificacionStrategy politica;
+    /** Nombre de la politica en uso (lo que muestra el selector de la interfaz). */
     private PoliticaPlanificacion nombrePolitica;
+    /** Ultimo ciclo global que vivio este computador; se usa para sellar llegadas, despachos y fines de los procesos. */
     private int cicloActual;
+    /** Ciclos de reloj que este computador ha vivido (denominador de la utilizacion). */
     private int ciclosTotales;
+    /** Ciclos en que la CPU ejecuto una instruccion de un proceso (numerador de la utilizacion). */
     private int ciclosOcupados;
 
+    /** COLA DE NUEVOS: procesos que esperan RAM (planificacion de largo plazo). Sale de aqui cuando cabe en memoria. */
     private final Cola<Proceso> colaNuevos = new Cola<>();
+    /** COLA DE LISTOS: procesos con RAM que esperan la CPU. Es unica por computador; la politica decide su orden. */
     private final Cola<Proceso> colaListos = new Cola<>();
+    /** COLA DE BLOQUEADOS: procesos que esperan un semaforo, una E/S o la red. Cada uno tiene su motivo de bloqueo. */
     private final Cola<Proceso> colaBloqueados = new Cola<>();
+    /** COLA DE TERMINADOS: procesos que acabaron (por completarse o por deadline); ya liberaron su RAM. */
     private final Cola<Proceso> colaTerminados = new Cola<>();
 
+    /** Cluster al que pertenece (para buscar otros computadores, la latencia de red y el log de eventos). */
     private Cluster cluster;
+    /**
+     * BANDEJA DE DESPERTARES: procesos de este computador a los que otro proceso desperto con semSignal. La
+     * escriben hilos de otros computadores y la vacia este al comienzo de su siguiente ciclo (como una
+     * interrupcion). Protegida por candadoDespertares.
+     */
     private final Cola<Proceso> despertares = new Cola<>();
+    /**
+     * Semaphore de Java que protege la bandeja despertares: la escribe el hilo de otro computador (recibirDespertar)
+     * mientras el de este la lee (procesarDespertares). Es el unico punto por el que otro computador "entra" aqui.
+     */
     private final Semaphore candadoDespertares = new Semaphore(1);
 
+    /** Crea un computador con su RAM, su quantum y sin politica (hay que asignarla con setPolitica). Valida nombre, RAM y quantum. */
     public Computador(String nombre, int ramTotal, int quantum) {
         if (nombre == null || nombre.isBlank()) {
             throw new IllegalArgumentException("El nombre del computador no puede estar vacío.");
@@ -130,6 +178,7 @@ public class Computador implements Clockable {
         return quantum;
     }
 
+    /** Cambia el quantum en ejecucion (debe ser mayor que 0). */
     public void setQuantum(int quantum) {
         if (quantum <= 0) {
             throw new IllegalArgumentException("El quantum debe ser mayor que 0.");
@@ -162,6 +211,7 @@ public class Computador implements Clockable {
         return nombrePolitica;
     }
 
+    /** Cambia la politica en ejecucion, de forma independiente en este computador. Los procesos ya en la cola de listos se conservan. */
     public void setPolitica(PoliticaPlanificacionStrategy politica, PoliticaPlanificacion nombre) {
         this.politica = politica;
         this.nombrePolitica = nombre;
@@ -190,6 +240,7 @@ public class Computador implements Clockable {
         }
     }
 
+    /** Devuelve RAM reservada con reservarMemoria. */
     public void liberarMemoria(int cantidad) {
         if (cantidad < 0) {
             throw new IllegalArgumentException("Cantidad de memoria inválida.");
@@ -212,6 +263,7 @@ public class Computador implements Clockable {
         }
     }
 
+    /** Saca al proceso de la CPU si la ocupaba, lo marca Bloqueado con su motivo y lo deja en la cola de bloqueados. */
     private void pasarABloqueados(Proceso proceso, String motivo, int ciclos) {
         if (cpu.getProcesoActual() == proceso) {
             cpu.cargarProceso(null);
@@ -249,6 +301,7 @@ public class Computador implements Clockable {
         (destino == null ? this : destino).recibirDespertar(despertado);
     }
 
+    /** Deja un aviso en la bandeja de despertares. Se puede llamar desde el hilo de otro computador. */
     public void recibirDespertar(Proceso proceso) {
         candadoDespertares.acquireUninterruptibly();
         try {
@@ -296,6 +349,7 @@ public class Computador implements Clockable {
         }
     }
 
+    /** Pasa un proceso de Bloqueado a Listo: borra su motivo y lo inserta en la cola de listos segun la politica. */
     private void desbloquear(Proceso proceso) {
         proceso.setMotivoBloqueo(null);
         proceso.setBloqueoRestante(-1);
@@ -303,6 +357,7 @@ public class Computador implements Clockable {
         pasarAListos(proceso);
     }
 
+    /** Entrega un proceso nuevo a este computador: queda en Nuevos con su ciclo de llegada y se intenta admitirlo. */
     public void recibirProceso(Proceso proceso) {
         if (proceso == null) {
             throw new IllegalArgumentException("El proceso no puede ser null.");
@@ -314,6 +369,10 @@ public class Computador implements Clockable {
         intentarAdmitirNuevos();
     }
 
+    /**
+     * Planificacion de largo plazo: recorre una vez la cola de nuevos y pasa a Listos a los que caben en la RAM; los demas siguen
+     * esperando. Devuelve cuantos admitio.
+     */
     public int intentarAdmitirNuevos() {
         int admitidos = 0;
         int pendientes = colaNuevos.getTamanio();
@@ -336,6 +395,10 @@ public class Computador implements Clockable {
         return admitidos;
     }
 
+    /**
+     * Termina un proceso (por completarse o por deadline): le da la oportunidad de soltar lo que tuviera (alTerminar), lo saca de
+     * la CPU y de las colas, libera su RAM, lo deja en Terminados y revisa si algun proceso de Nuevos ya cabe. Ignora a un proceso ya terminado.
+     */
     public void terminarProceso(Proceso proceso) {
         if (proceso == null || colaTerminados.getLista().contiene(proceso)) {
             return;
@@ -365,6 +428,7 @@ public class Computador implements Clockable {
         intentarAdmitirNuevos();
     }
 
+    /** Inserta el proceso en la cola de listos con el orden que decide la politica. */
     private void pasarAListos(Proceso proceso) {
         if (politica != null) {
             politica.alLlegar(proceso, colaListos);
@@ -373,6 +437,7 @@ public class Computador implements Clockable {
         }
     }
 
+    /** Reinicia el contador de ids (se usa al construir un cluster nuevo y en las pruebas). */
     public static void reiniciarContadorIds() {
         contadorIds = 0;
     }
@@ -383,6 +448,14 @@ public class Computador implements Clockable {
         onTick((int) ciclo);
     }
 
+    /**
+     * Un ciclo de reloj de este computador, siempre en este orden:
+     * 1) procesa los despertares que dejaron otros computadores;
+     * 2) avanza los bloqueos por tiempo (E/S y red);
+     * 3) si la CPU esta libre despacha segun la politica (o desaloja por prioridad);
+     * 4) ejecuta UNA instruccion del proceso en la CPU con su programa;
+     * 5) baja el deadline de todos los procesos vivos y termina a los que llegan a 0.
+     */
     public void onTick(int cicloGlobal) {
         cicloActual = cicloGlobal;
         ciclosTotales++;
@@ -424,6 +497,7 @@ public class Computador implements Clockable {
         }
     }
 
+    /** Round Robin: resta un ciclo al quantum del proceso actual y, si se agoto y hay otros listos, lo desaloja y despacha al siguiente. */
     private void controlarQuantum() {
         if (nombrePolitica == PoliticaPlanificacion.ROUND_ROBIN) {
             quantumRestante--;
@@ -455,6 +529,7 @@ public class Computador implements Clockable {
         }
     }
 
+    /** Foto (arreglo) de los procesos vivos: en CPU, nuevos, listos y bloqueados. Sirve para recorrerlos mientras se terminan procesos sin invalidar los recorridos. */
     private Proceso[] procesosVivos() {
         Proceso[] vivos = new Proceso[(cpu.getProcesoActual() == null ? 0 : 1) + colaNuevos.getTamanio()
                 + colaListos.getTamanio() + colaBloqueados.getTamanio()];
@@ -468,6 +543,7 @@ public class Computador implements Clockable {
         return vivos;
     }
 
+    /** Copia los procesos de una cola al arreglo a partir de la posicion dada y devuelve la siguiente posicion libre. */
     private static int copiar(Cola<Proceso> cola, Proceso[] destino, int desde) {
         int i = desde;
         Nodo<Proceso> actual = cola.getLista().getCabeza();
@@ -478,6 +554,7 @@ public class Computador implements Clockable {
         return i;
     }
 
+    /** Quita el proceso de la CPU y lo devuelve a Listos (por quantum vencido o prioridad mayor), conservando lo que ya ejecuto. */
     private void desalojarProcesoActual() {
         if (cpu.getProcesoActual() == null || politica == null) {
             return;
@@ -488,6 +565,7 @@ public class Computador implements Clockable {
         cpu.setModo(ModoCPU.SISTEMA_OPERATIVO);
     }
 
+    /** Politica de prioridades apropiativas: verdadero si algun proceso listo tiene mayor prioridad que el de la CPU. */
     private boolean hayListoConMayorPrioridad() {
         if (cpu.getProcesoActual() == null) {
             return false;
@@ -502,6 +580,7 @@ public class Computador implements Clockable {
         return false;
     }
 
+    /** Cambio de contexto: la politica elige un proceso de listos y se carga en la CPU (se sella su primer despacho si es la primera vez); con la cola vacia la CPU queda libre. */
     private void despacharSiguiente() {
         if (politica == null) {
             return;

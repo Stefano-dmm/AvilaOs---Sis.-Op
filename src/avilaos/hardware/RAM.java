@@ -15,12 +15,14 @@ public class RAM {
     private int memoriaUsada;         // Memoria actualmente ocupada
     private final ListaEnlazada<Proceso> procesosEnMemoria; // Procesos cargados en RAM
 
+    /** Crea una RAM vacia con la capacidad dada. */
     public RAM(int capacidadTotal) {
         this.capacidadTotal = capacidadTotal;
         this.memoriaUsada = 0;
         this.procesosEnMemoria = new ListaEnlazada<>();
     }
 
+    /** Reserva la memoria que pide un proceso y lo anota en la lista de procesos en memoria; devuelve false si no cabe (el proceso sigue en Nuevos). */
     public boolean asignarMemoria(Proceso proceso) {
         int tamanoProceso = proceso.getMemoriaRequerida();
 
@@ -50,10 +52,12 @@ public class RAM {
         return true;
     }
 
+    /** Devuelve memoria reservada con reservar (nunca baja de 0). */
     public void liberar(int cantidad) {
         memoriaUsada = Math.max(0, memoriaUsada - cantidad);
     }
 
+    /** Memoria libre: capacidad total menos la usada. */
     public int getMemoriaDisponible() {
         return capacidadTotal - memoriaUsada;
     }
@@ -72,6 +76,7 @@ public class RAM {
         return memoriaUsada;
     }
 
+    /** Procesos que tienen RAM reservada. No se modifica desde fuera: solo la RAM cambia esta lista. */
     public ListaEnlazada<Proceso> getProcesosEnMemoria() {
         return procesosEnMemoria;
     }

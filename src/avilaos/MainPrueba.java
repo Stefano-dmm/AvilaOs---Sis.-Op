@@ -8,8 +8,13 @@ import avilaos.nucleo.Computador;
 import avilaos.nucleo.politicas.FCFS;
 import avilaos.nucleo.politicas.RoundRobin;
 
+/**
+ * Demostracion por consola de un cluster pequeno (sin interfaz ni hilos): util para ver el planificador ciclo a
+ * ciclo. La aplicacion real arranca en avilaos.gui.AvilaOSGui.
+ */
 public class MainPrueba {
 
+    /** Crea dos computadores con politicas distintas, les asigna procesos y avanza 8 ciclos imprimiendo quien ocupa cada CPU. */
     public static void main(String[] args) {
         Computador.reiniciarContadorIds();
         Proceso.reiniciarContadorGlobal();
@@ -55,6 +60,7 @@ public class MainPrueba {
         System.out.println("\nAsignacion manual OK.");
     }
 
+    /** Nombre del proceso que ocupa la CPU, o idle si esta libre. */
     private static String cpu(Computador pc) {
         return pc.getProcesoEnCPU() == null ? "idle" : pc.getProcesoEnCPU().getEtiqueta();
     }

@@ -24,9 +24,11 @@ import java.nio.file.Path;
  */
 public final class ArchivoConfiguracion {
 
+    /** Clase de utilidades: no se instancia. */
     private ArchivoConfiguracion() {
     }
 
+    /** Escribe la configuracion en el CSV: parametros generales, computadores, buffers y procesos, en ese orden (los indices dependen del orden). */
     public static void guardar(Path ruta, Configuracion config) throws IOException {
         try (BufferedWriter out = Files.newBufferedWriter(ruta, StandardCharsets.UTF_8)) {
             out.write("# Configuracion de AvilaOS");
@@ -88,6 +90,7 @@ public final class ArchivoConfiguracion {
         return config;
     }
 
+    /** Interpreta una linea del CSV segun su primer campo (CICLO_MS, LATENCIA_RED, COMPUTADOR, BUFFER o PROCESO) y la agrega a la configuracion. */
     private static void procesarLinea(Configuracion config, String[] campos) {
         switch (campos[0].trim()) {
             case "CICLO_MS" -> config.setCicloMs(entero(campos, 1, "duracion del ciclo", 2));
@@ -110,6 +113,7 @@ public final class ArchivoConfiguracion {
         }
     }
 
+    /** Lee una linea PROCESO de 12 campos, o de 8 (formato anterior, que se carga como CPU bound). */
     private static void procesarProceso(Configuracion config, String[] campos) {
         if (campos.length != 8 && campos.length != 12) {
             throw new IllegalArgumentException("se esperaban 8 o 12 campos y hay " + campos.length);
@@ -129,12 +133,14 @@ public final class ArchivoConfiguracion {
                 completo ? entero(campos, 11, "ciclos de E/S", total) : 0));
     }
 
+    /** Comprueba que la linea tenga la cantidad de campos esperada. */
     private static void exigirCampos(String[] campos, int cantidad) {
         if (campos.length != cantidad) {
             throw new IllegalArgumentException("se esperaban " + cantidad + " campos y hay " + campos.length);
         }
     }
 
+    /** Convierte un campo a entero con un mensaje claro si no lo es. */
     private static int entero(String[] campos, int posicion, String nombre, int esperados) {
         exigirCampos(campos, esperados);
         try {

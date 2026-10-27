@@ -16,6 +16,7 @@ public class TablaProcesos extends JTable {
 
     private final ModeloProcesos modelo = new ModeloProcesos();
 
+    /** Crea la tabla de solo lectura con las columnas del PCB. */
     public TablaProcesos() {
         setModel(modelo);
         setFillsViewportHeight(true);
@@ -25,6 +26,7 @@ public class TablaProcesos extends JTable {
         getColumnModel().getColumn(10).setPreferredWidth(180);
     }
 
+    /** Muestra los procesos de una cola, en su orden. Toma una copia en un arreglo, asi que no importa que la cola cambie despues. */
     public void mostrarCola(Cola<Proceso> cola) {
         Proceso[] filas = new Proceso[cola.getTamanio()];
         Nodo<Proceso> actual = cola.getLista().getCabeza();
@@ -36,6 +38,7 @@ public class TablaProcesos extends JTable {
         modelo.reemplazar(filas);
     }
 
+    /** Muestra un solo proceso (el de la CPU) o la tabla vacia si es null. */
     public void mostrarProceso(Proceso proceso) {
         modelo.reemplazar(proceso == null ? new Proceso[0] : new Proceso[] {proceso});
     }

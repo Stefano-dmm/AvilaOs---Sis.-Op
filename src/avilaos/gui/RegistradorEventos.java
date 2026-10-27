@@ -13,12 +13,14 @@ public class RegistradorEventos {
     private final LogEventos log;
     private final Proceso[] enCpuAnterior;
 
+    /** Guarda el cluster que observa y el log donde escribe. */
     public RegistradorEventos(Cluster cluster, LogEventos log) {
         this.cluster = cluster;
         this.log = log;
         this.enCpuAnterior = new Proceso[cluster.getCantidadComputadores()];
     }
 
+    /** Compara, para cada computador, el proceso en CPU con el del ciclo anterior. Debe llamarse una vez por ciclo, con el cerrojo tomado. */
     public void observarCiclo() {
         int i = 0;
         Nodo<Computador> actual = cluster.getComputadores().getCabeza();
@@ -29,6 +31,7 @@ public class RegistradorEventos {
         }
     }
 
+    /** Registra cuando un computador desaloja a un proceso o selecciona otro. */
     private void observar(Computador pc, int indice) {
         Proceso anterior = enCpuAnterior[indice];
         Proceso actual = pc.getProcesoEnCPU();

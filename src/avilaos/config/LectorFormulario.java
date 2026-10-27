@@ -10,9 +10,11 @@ import avilaos.nucleo.programas.ProgramaProductorConsumidor;
  */
 public final class LectorFormulario {
 
+    /** Clase de utilidades: no se instancia. */
     private LectorFormulario() {
     }
 
+    /** Convierte el texto de un campo en un entero dentro del rango; el mensaje de error nombra el campo y explica el problema. */
     public static int entero(String texto, String campo, int min, int max) {
         String limpio = (texto == null) ? "" : texto.trim();
         if (limpio.isEmpty()) {
@@ -28,6 +30,7 @@ public final class LectorFormulario {
         return valor;
     }
 
+    /** Valida un nombre: no vacio y sin comas (el CSV las usa como separador). */
     public static String nombre(String texto, String campo) {
         String limpio = (texto == null) ? "" : texto.trim();
         if (limpio.isEmpty()) {
@@ -39,6 +42,7 @@ public final class LectorFormulario {
         return limpio;
     }
 
+    /** Arma los datos de un buffer a partir del formulario, validando nombre, capacidad y anfitrion. */
     public static ConfigBuffer buffer(String nombre, String capacidad, int indiceComputador) {
         if (indiceComputador < 0) {
             throw new IllegalArgumentException("Debe elegir el computador anfitrion del buffer.");

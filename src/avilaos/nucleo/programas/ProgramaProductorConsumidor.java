@@ -28,13 +28,20 @@ public class ProgramaProductorConsumidor implements ProgramaProceso {
         return elementos * (ciclosPorElemento + 5);
     }
 
+    /** Verdadero si este proceso produce; falso si consume. */
     private final boolean productor;
+    /** Buffer con el que trabaja (puede vivir en otro computador: acceso remoto). */
     private final BufferSO buffer;
+    /** Instrucciones de usuario que dedica a producir o consumir cada elemento (el trabajo fuera de la region critica). */
     private final int ciclosPorElemento;
+    /** Punto del protocolo en que va este proceso; decide que instruccion ejecuta en el siguiente ciclo. Lo usa alTerminar para saber que tenia tomado. */
     private PasoComunicacion paso;
+    /** Instrucciones de usuario ya hechas del elemento actual. */
     private int trabajoHecho;
+    /** Verdadero si ya espero la latencia de red del acceso en curso (para no volver a bloquearse antes de insertar o extraer). */
     private boolean accesoRemotoPagado;
 
+    /** Crea el programa; el productor empieza produciendo y el consumidor empieza esperando elementos. */
     public ProgramaProductorConsumidor(boolean productor, BufferSO buffer, int ciclosPorElemento) {
         if (buffer == null) {
             throw new IllegalArgumentException("El proceso necesita un buffer.");
@@ -48,6 +55,7 @@ public class ProgramaProductorConsumidor implements ProgramaProceso {
         this.paso = productor ? PasoComunicacion.TRABAJAR : PasoComunicacion.WAIT_PRIMERO;
     }
 
+    /** Paso actual del protocolo (lo usan las pruebas). */
     public PasoComunicacion getPaso() {
         return paso;
     }
@@ -56,14 +64,17 @@ public class ProgramaProductorConsumidor implements ProgramaProceso {
         return buffer;
     }
 
+    /** Primer semaforo del protocolo: vacios para el productor, llenos para el consumidor. */
     private SemaforoSO primero() {
         return productor ? buffer.getVacios() : buffer.getLlenos();
     }
 
+    /** Ultimo semaforo del protocolo: llenos para el productor, vacios para el consumidor. */
     private SemaforoSO segundo() {
         return productor ? buffer.getLlenos() : buffer.getVacios();
     }
 
+    /** Texto del motivo de bloqueo: semaforo y buffer donde espera. */
     private static String motivo(SemaforoSO semaforo, BufferSO buffer) {
         return "semaforo '" + semaforo.getNombre() + "' del buffer " + buffer.getNombre();
     }

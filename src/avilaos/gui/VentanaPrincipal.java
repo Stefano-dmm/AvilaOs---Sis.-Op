@@ -31,10 +31,15 @@ import javax.swing.SwingUtilities;
  */
 public class VentanaPrincipal extends JFrame {
 
+    /** El sistema que se observa y controla. */
     private final Cluster cluster;
+    /** Parametros de la simulacion; crece con los buffers y procesos que se crean para poder guardarla en un archivo. */
     private final Configuracion config;
+    /** Log de eventos de texto; se puede escribir desde cualquier hilo. */
     private final LogEventos log = new LogEventos();
+    /** Observa la CPU de cada computador tras cada ciclo y registra los cambios de proceso. */
     private final RegistradorEventos registrador;
+    /** Serie de utilizacion de CPU por computador que dibuja el grafico. */
     private final HistorialUtilizacion historial;
     private PanelMetricas panelMetricas;
     private PanelCrearProceso panelCrear;
@@ -44,10 +49,15 @@ public class VentanaPrincipal extends JFrame {
     private final JButton btnPaso = new JButton("Paso");
     private final JButton btnGuardar = new JButton("Guardar configuracion");
     private final JSpinner spnDuracionCiclo;
+    /** Reloj global con sus hilos: hace avanzar la simulacion; los botones solo le dan ordenes. */
     private final RelojGlobal reloj;
     private final JTabbedPane pestanas = new JTabbedPane();
     private final PanelComputador[] paneles;
 
+    /**
+     * Arma la ventana, crea el reloj global del cluster y lo conecta con la interfaz: al terminar cada ciclo el reloj
+     * llama a alCompletarCiclo.
+     */
     public VentanaPrincipal(Cluster cluster, Configuracion config) {
         super("AvilaOS - Simulador distribuido");
         this.cluster = cluster;
@@ -67,6 +77,7 @@ public class VentanaPrincipal extends JFrame {
         conectarControles();
     }
 
+    /** Crea las pestanas: crear proceso, buffers, una por computador y metricas. */
     private void construirPestanas() {
         panelCrear = new PanelCrearProceso(cluster, config, log, this::refrescarPaneles);
         panelBuffers = new PanelBuffers(cluster, config, this::bufferCreado);
@@ -84,6 +95,7 @@ public class VentanaPrincipal extends JFrame {
         pestanas.addTab("Metricas", panelMetricas);
     }
 
+    /** Barra de controles, pestanas y log. */
     private void construirVentana() {
         JPanel barra = new JPanel(new FlowLayout(FlowLayout.LEFT));
         barra.add(btnIniciar);
@@ -104,6 +116,7 @@ public class VentanaPrincipal extends JFrame {
         setLocationRelativeTo(null);
     }
 
+    /** Conecta los botones con el reloj: Iniciar/Pausar, Paso y la duracion del ciclo; al cerrar la ventana se detiene el reloj. */
     private void conectarControles() {
         btnIniciar.addActionListener(e -> alternarReloj());
         btnPaso.addActionListener(e -> reloj.paso());
@@ -117,6 +130,7 @@ public class VentanaPrincipal extends JFrame {
         });
     }
 
+    /** Boton Iniciar/Pausar: alterna entre el avance automatico y la pausa. */
     private void alternarReloj() {
         if (reloj.isEnMarcha()) {
             reloj.pausar();
@@ -143,6 +157,7 @@ public class VentanaPrincipal extends JFrame {
         });
     }
 
+    /** Se ejecuta (en el hilo de Swing) si un computador fallo durante un ciclo: el reloj ya se pauso y se avisa al usuario. */
     private void alFallarElReloj(Throwable error) {
         SwingUtilities.invokeLater(() -> {
             btnIniciar.setText("Iniciar");
@@ -152,11 +167,13 @@ public class VentanaPrincipal extends JFrame {
         });
     }
 
+    /** Un buffer nuevo debe aparecer en la lista de buffers del formulario de procesos y en las tablas. */
     private void bufferCreado() {
         panelCrear.recargarBuffers();
         refrescarPaneles();
     }
 
+    /** Guarda en un CSV los parametros y todos los procesos y buffers creados. */
     private void guardarConfiguracion() {
         JFileChooser selector = new JFileChooser();
         selector.setSelectedFile(new File("configuracion.csv"));

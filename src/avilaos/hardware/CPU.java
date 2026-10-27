@@ -19,6 +19,7 @@ public class CPU {
     private ModoCPU modo;     // Usuario o sistema operativo
     private Proceso procesoActual;
 
+    /** Crea una CPU libre, en modo sistema operativo y con los registros en 0. */
     public CPU() {
         this.pc = 0;
         this.mar = 0;
@@ -76,6 +77,7 @@ public class CPU {
         return procesoActual;
     }
 
+    /** Verdadero si hay un proceso cargado. */
     public boolean estaOcupada() {
         return procesoActual != null;
     }

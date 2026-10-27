@@ -41,6 +41,7 @@ public class VentanaConfiguracion extends JFrame {
     private ListaEnlazada<ConfigProceso> procesosCargados = new ListaEnlazada<>();
     private ListaEnlazada<ConfigBuffer> buffersCargados = new ListaEnlazada<>();
 
+    /** Arma la ventana con los valores iniciales dados. */
     public VentanaConfiguracion(Configuracion inicial, Consumer<Configuracion> alIniciar) {
         super("AvilaOS - Configuracion");
         this.alIniciar = alIniciar;
@@ -51,6 +52,7 @@ public class VentanaConfiguracion extends JFrame {
         setLocationRelativeTo(null);
     }
 
+    /** Distribuye los campos generales, las filas de computadores y los botones. */
     private void construir() {
         JPanel general = new JPanel(new GridLayout(3, 2, 6, 6));
         general.setBorder(BorderFactory.createTitledBorder("General"));
@@ -89,6 +91,7 @@ public class VentanaConfiguracion extends JFrame {
         setContentPane(centro);
     }
 
+    /** Muestra solo tantas filas de computadores como indique el selector de cantidad. */
     private void mostrarFilas() {
         int cantidad = (Integer) spnCantidad.getValue();
         for (int i = 0; i < filas.length; i++) {
@@ -98,6 +101,7 @@ public class VentanaConfiguracion extends JFrame {
         pack();
     }
 
+    /** Vuelca una configuracion (por ejemplo la de un archivo) en los campos. */
     private void aplicar(Configuracion config) {
         spnCiclo.setValue(config.getCicloMs());
         spnLatencia.setValue(config.getLatenciaRed());
@@ -139,6 +143,7 @@ public class VentanaConfiguracion extends JFrame {
         return config;
     }
 
+    /** Valida el formulario completo y, si esta bien, cierra la ventana y arranca la simulacion. */
     private void iniciar() {
         try {
             Configuracion config = leerFormulario();
@@ -149,6 +154,7 @@ public class VentanaConfiguracion extends JFrame {
         }
     }
 
+    /** Valida el formulario y lo guarda en un archivo CSV elegido por el usuario. */
     private void guardarArchivo() {
         try {
             Configuracion config = leerFormulario();
@@ -165,6 +171,7 @@ public class VentanaConfiguracion extends JFrame {
         }
     }
 
+    /** Carga un CSV; si es invalido muestra el numero de linea del error. */
     private void cargarArchivo() {
         JFileChooser selector = new JFileChooser();
         if (selector.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
@@ -179,6 +186,7 @@ public class VentanaConfiguracion extends JFrame {
         }
     }
 
+    /** Muestra un aviso de dato invalido sin cerrar la aplicacion. */
     private void avisar(String mensaje) {
         JOptionPane.showMessageDialog(this, mensaje, "Datos invalidos", JOptionPane.WARNING_MESSAGE);
     }

@@ -25,12 +25,14 @@ public class GraficoUtilizacion extends JPanel {
 
     private final HistorialUtilizacion historial;
 
+    /** Crea el grafico a partir del historial de utilizacion. */
     public GraficoUtilizacion(HistorialUtilizacion historial) {
         this.historial = historial;
         setPreferredSize(new Dimension(600, 260));
         setBackground(Color.WHITE);
     }
 
+    /** Dibuja los ejes, las series y la leyenda. Solo lee el historial: no modifica nada. */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -50,6 +52,7 @@ public class GraficoUtilizacion extends JPanel {
         g2.dispose();
     }
 
+    /** Ejes: porcentaje de utilizacion (0 a 100) y ciclo de reloj, con cuadricula y titulo. */
     private void dibujarEjes(Graphics2D g2, int ancho, int alto) {
         FontMetrics fm = g2.getFontMetrics();
         g2.setColor(Color.DARK_GRAY);
@@ -78,6 +81,7 @@ public class GraficoUtilizacion extends JPanel {
         g2.drawRect(MARGEN_IZQ, MARGEN_SUP, ancho, alto);
     }
 
+    /** Una linea por computador: cada punto es su utilizacion en una ventana movil de los ultimos ciclos. */
     private void dibujarSeries(Graphics2D g2, int ancho, int alto) {
         int maxCiclo = ejeX();
         int puntos = historial.getCantidadPuntos();
@@ -99,6 +103,7 @@ public class GraficoUtilizacion extends JPanel {
         g2.setStroke(new BasicStroke(1f));
     }
 
+    /** Leyenda con el color de cada computador. */
     private void dibujarLeyenda(Graphics2D g2) {
         FontMetrics fm = g2.getFontMetrics();
         int x = getWidth() - MARGEN_DER;
@@ -114,6 +119,7 @@ public class GraficoUtilizacion extends JPanel {
         }
     }
 
+    /** Ciclos que abarca el eje horizontal: al menos 20 para que no cambie de escala demasiado al empezar. */
     private int ejeX() {
         return Math.max(CICLOS_MINIMOS_EJE, historial.getCantidadPuntos());
     }

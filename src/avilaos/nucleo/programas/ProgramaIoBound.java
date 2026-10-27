@@ -12,8 +12,11 @@ import avilaos.nucleo.Computador;
  */
 public class ProgramaIoBound implements ProgramaProceso {
 
+    /** Instrucciones de CPU que ejecuta antes de pedir cada E/S. */
     private final int ciclosEntreES;
+    /** Ciclos que dura cada E/S, durante los cuales esta bloqueado. */
     private final int ciclosES;
+    /** Instrucciones de CPU ejecutadas en la rafaga actual. */
     private int cpuEnRafaga;
 
     /**
