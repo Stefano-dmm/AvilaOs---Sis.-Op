@@ -204,7 +204,7 @@ Las primeras seis se calculan por computador y para el sistema completo; el tiem
 
 ![Diagrama de estados de un proceso](img/uml_estados.png)
 
-Estos son los diagramas del sistema terminado. Los diagramas que el equipo hizo en la fase de diseño, antes de implementar los semáforos, los buffers y el reloj con hilos, están en el Apéndice (sección 19).
+El primero es el diagrama de clases del núcleo del sistema y el segundo es el diagrama de estados de un proceso.
 
 ## 14. Resultados y conclusiones
 
@@ -286,7 +286,7 @@ En la fase de diseño el equipo escribió qué esperaba de cada política y de l
 
 ## 15. Metodología de desarrollo, calidad y fiabilidad
 
-**Organización del trabajo.** El proyecto se dividió en tres módulos para repartir el trabajo: el núcleo y la planificación; el hardware, el reloj y la sincronización; y la interfaz, la configuración, las métricas y el informe. Antes de programar, el equipo acordó los contratos del sistema (enumeraciones e interfaces) y documentó el diseño inicial con diagramas de PlantUML (Apéndice).
+**Organización del trabajo.** El proyecto se dividió en tres módulos para repartir el trabajo: el núcleo y la planificación; el hardware, el reloj y la sincronización; y la interfaz, la configuración, las métricas y el informe. Antes de programar, el equipo acordó los contratos del sistema (enumeraciones e interfaces) y documentó el diseño inicial con diagramas de PlantUML.
 
 **Control de versiones (GitFlow).** El código está en un repositorio de GitHub con una rama `develop` y ramas por funcionalidad con un objetivo claro (por ejemplo `feat/gui`, `feat/hardware`, `interfaz-pcb`, `metricas-y-grafica`, `sincronizacion-semaforos`, `nucleo-productor-consumidor`, `reloj-hilos`, `config-buffers-gui`, `pruebas-e-informe` y `grafica-metricas`). Cada rama se integra a `develop` con un Pull Request. Los commits son pequeños y con mensajes descriptivos con prefijo (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`).
 
@@ -322,11 +322,3 @@ Las pruebas automáticas (382 casos, sin librerías externas) se ejecutan con `a
 1. Abrir el proyecto en NetBeans (Java 21 o superior).
 2. Ejecutar el proyecto (*Run*): la clase principal es `avilaos.gui.AvilaOSGui` y abre la ventana de configuración.
 3. Pruebas: `avilaos.pruebas.EjecutarPruebas`. Experimentos: `avilaos.pruebas.ExperimentoPoliticas`.
-
-## 19. Apéndice: diseño inicial del equipo
-
-Estos diagramas (hechos con PlantUML en la fase de diseño) fueron la base del proyecto. El sistema evolucionó al implementarlo: por ejemplo la interfaz `Ciclico` pasó a ser `Clockable`, los campos de RAM y de modo de la CPU pasaron a las clases `RAM` y `CPU`, `decrementarDeadline` pasó a `descontarDeadline` y se aplica a todos los procesos vivos, `admitirProceso` pasó a `recibirProceso` e `intentarAdmitirNuevos`, el estado Bloqueado se dividió en tres motivos y se agregaron los semáforos, los buffers, los programas de proceso y el reloj con hilos. Los diagramas del sistema terminado están en la sección 13.
-
-![Diagrama de procesos inicial (PlantUML)](img/diseno_inicial_estados.png)
-
-![Diagrama de clases inicial (PlantUML)](img/diseno_inicial_clases.png)
