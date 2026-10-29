@@ -12,14 +12,23 @@ import java.nio.file.Path;
 
 /**
  * Lee y escribe la configuracion en un CSV sencillo, una linea por elemento:
- * CICLO_MS,500 | LATENCIA_RED,2 | COMPUTADOR,nombre,ram,politica,quantum
- * | PROCESO,nombre,tipo,prioridad,memoria,deadline,instrucciones,indiceComputador
+ * <pre>
+ * CICLO_MS,500
+ * LATENCIA_RED,2
+ * COMPUTADOR,nombre,ram,politica,quantum
+ * BUFFER,nombre,capacidad,indiceComputador
+ * PROCESO,nombre,tipo,prioridad,memoria,deadline,instrucciones,indiceComputador,indiceBuffer,intervalo,elementos,ciclosES
+ * </pre>
+ * Los indices empiezan en 0 y siguen el orden del archivo; indiceComputador -1 pide asignacion
+ * automatica. Una linea PROCESO con solo 8 campos (formato anterior) se acepta como CPU bound.
  */
 public final class ArchivoConfiguracion {
 
+    /** Clase de utilidades: no se instancia. */
     private ArchivoConfiguracion() {
     }
 
+    /** Escribe la configuracion en el CSV: parametros generales, computadores, buffers y procesos, en ese orden (los indices dependen del orden). */
     public static void guardar(Path ruta, Configuracion config) throws IOException {
         try (BufferedWriter out = Files.newBufferedWriter(ruta, StandardCharsets.UTF_8)) {
             out.write("# Configuracion de AvilaOS");
@@ -37,12 +46,21 @@ public final class ArchivoConfiguracion {
                 pc = pc.getSiguiente();
             }
 
+            Nodo<ConfigBuffer> bf = config.getBuffers().getCabeza();
+            while (bf != null) {
+                ConfigBuffer b = bf.getDato();
+                out.write("BUFFER," + b.nombre() + "," + b.capacidad() + "," + b.indiceComputador());
+                out.newLine();
+                bf = bf.getSiguiente();
+            }
+
             Nodo<ConfigProceso> pr = config.getProcesos().getCabeza();
             while (pr != null) {
                 ConfigProceso p = pr.getDato();
                 out.write("PROCESO," + p.nombre() + "," + p.tipo() + "," + p.prioridad() + ","
                         + p.memoria() + "," + p.deadline() + "," + p.instrucciones() + ","
-                        + p.indiceComputador());
+                        + p.indiceComputador() + "," + p.indiceBuffer() + "," + p.intervalo() + ","
+                        + p.elementos() + "," + p.ciclosES());
                 out.newLine();
                 pr = pr.getSiguiente();
             }
@@ -72,6 +90,7 @@ public final class ArchivoConfiguracion {
         return config;
     }
 
+    /** Interpreta una linea del CSV segun su primer campo (CICLO_MS, LATENCIA_RED, COMPUTADOR, BUFFER o PROCESO) y la agrega a la configuracion. */
     private static void procesarLinea(Configuracion config, String[] campos) {
         switch (campos[0].trim()) {
             case "CICLO_MS" -> config.setCicloMs(entero(campos, 1, "duracion del ciclo", 2));
@@ -83,26 +102,45 @@ public final class ArchivoConfiguracion {
                         PoliticaPlanificacion.valueOf(campos[3].trim()),
                         entero(campos, 4, "quantum", 5)));
             }
-            case "PROCESO" -> {
-                exigirCampos(campos, 8);
-                config.agregarProceso(new ConfigProceso(campos[1].trim(),
-                        TipoProceso.valueOf(campos[2].trim()),
-                        entero(campos, 3, "prioridad", 8),
-                        entero(campos, 4, "memoria", 8),
-                        entero(campos, 5, "deadline", 8),
-                        entero(campos, 6, "instrucciones", 8),
-                        entero(campos, 7, "indice de computador", 8)));
+            case "BUFFER" -> {
+                exigirCampos(campos, 4);
+                config.agregarBuffer(new ConfigBuffer(campos[1].trim(),
+                        entero(campos, 2, "capacidad", 4),
+                        entero(campos, 3, "indice de computador", 4)));
             }
+            case "PROCESO" -> procesarProceso(config, campos);
             default -> throw new IllegalArgumentException("tipo de linea desconocido: " + campos[0]);
         }
     }
 
+    /** Lee una linea PROCESO de 12 campos, o de 8 (formato anterior, que se carga como CPU bound). */
+    private static void procesarProceso(Configuracion config, String[] campos) {
+        if (campos.length != 8 && campos.length != 12) {
+            throw new IllegalArgumentException("se esperaban 8 o 12 campos y hay " + campos.length);
+        }
+        int total = campos.length;
+        TipoProceso tipo = TipoProceso.valueOf(campos[2].trim());
+        boolean completo = total == 12;
+        config.agregarProceso(new ConfigProceso(campos[1].trim(), tipo,
+                entero(campos, 3, "prioridad", total),
+                entero(campos, 4, "memoria", total),
+                entero(campos, 5, "deadline", total),
+                entero(campos, 6, "instrucciones", total),
+                entero(campos, 7, "indice de computador", total),
+                completo ? entero(campos, 8, "indice de buffer", total) : -1,
+                completo ? entero(campos, 9, "intervalo", total) : 1,
+                completo ? entero(campos, 10, "elementos", total) : 0,
+                completo ? entero(campos, 11, "ciclos de E/S", total) : 0));
+    }
+
+    /** Comprueba que la linea tenga la cantidad de campos esperada. */
     private static void exigirCampos(String[] campos, int cantidad) {
         if (campos.length != cantidad) {
             throw new IllegalArgumentException("se esperaban " + cantidad + " campos y hay " + campos.length);
         }
     }
 
+    /** Convierte un campo a entero con un mensaje claro si no lo es. */
     private static int entero(String[] campos, int posicion, String nombre, int esperados) {
         exigirCampos(campos, esperados);
         try {

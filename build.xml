@@ -1,20 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="AvilaOS" default="run" basedir=".">
-    <property name="src.dir" value="src"/>
-    <property name="build.dir" value="build/classes"/>
-    <property name="main.class" value="avilaos.MainPrueba"/>
-
-    <target name="clean">
-        <delete dir="build"/>
-    </target>
-
-    <target name="compile">
-        <mkdir dir="${build.dir}"/>
-        <javac srcdir="${src.dir}" destdir="${build.dir}" includeantruntime="false"
-               encoding="UTF-8" source="21" target="21"/>
-    </target>
-
-    <target name="run" depends="compile">
-        <java classname="${main.class}" classpath="${build.dir}" fork="true"/>
-    </target>
+<project name="AvilaOS" default="default" basedir=".">
+    <description>Builds, tests, and runs the project AvilaOS.</description>
+    <import file="nbproject/build-impl.xml"/>
 </project>
