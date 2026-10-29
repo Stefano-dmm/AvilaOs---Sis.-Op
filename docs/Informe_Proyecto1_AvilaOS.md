@@ -1,11 +1,25 @@
-# Proyecto 1: ÁvilaOS — Diseño de un Sistema Operativo Distribuido
+![Universidad Metropolitana|260](img/logo_unimet.png)
 
-**Asignatura:** Sistemas Operativos — Trimestre 2627-1
+# Proyecto 1: ÁvilaOS
+## Diseño de un Sistema Operativo Distribuido
+
+**Asignatura:** Sistemas Operativos
+
+**Trimestre:** 2627-1
+
+**Profesor:** García
+
+**Integrantes:**
+
+- Stefano Di Michelangelo — V-29678557
+- Jesús Bethencourt — V-30906782
+- Jesús Fernández — V-29965948
+
 **Repositorio:** https://github.com/Stefano-dmm/AvilaOs---Sis.-Op
 
-**Integrantes:** (completar nombre, cédula y sección de cada integrante)
+Caracas, octubre de 2026
 
----
+\newpage
 
 ## 1. Introducción
 
@@ -163,7 +177,7 @@ productor:            consumidor:
 - **Buffers:** formulario para crear buffers (nombre, capacidad, anfitrión) y tabla con elementos, capacidad, valores de los tres semáforos y procesos bloqueados en cada uno.
 - **Vista 2 (un computador por pestaña):** proceso en la CPU con su PC, MAR, prioridad y deadline; si se ejecuta el SO o un programa de usuario; colas de nuevos, listos, bloqueados (con el motivo) y terminados con todos los elementos del PCB; ocupación de la RAM; selector de política y de quantum.
 - **Global:** número de ciclo, botones iniciar, pausar y paso, duración del ciclo editable en ejecución y log de eventos de texto.
-- **Métricas:** tablas y un gráfico con la utilización de cada CPU contra el tiempo.
+- **Métricas:** tablas por computador y del sistema, y un gráfico contra el tiempo con un selector para elegir la métrica: utilización de la CPU, throughput, tasa de éxito (deadlines cumplidos) o tiempo de espera. Hay una línea por computador y una punteada para el sistema completo.
 
 Todos los campos validan tipo y rango (letras, decimales, vacíos, negativos y números gigantes se rechazan con un mensaje) sin interrumpir la simulación. El archivo de configuración es un CSV con líneas `CICLO_MS`, `LATENCIA_RED`, `COMPUTADOR`, `BUFFER` y `PROCESO`; al cargar un archivo inválido se indica el número de línea del error.
 
@@ -174,18 +188,23 @@ Todos los campos validan tipo y rango (letras, decimales, vacíos, negativos y n
 | Throughput | Procesos completados por ciclo de reloj |
 | Utilización | Ciclos en que la CPU ejecutó un proceso de usuario, entre los ciclos totales |
 | Tiempo de respuesta promedio | Ciclos entre la llegada de un proceso y su primer despacho |
-| Cumplimiento de deadlines | Procesos terminados a tiempo entre terminados |
+| Tiempo de espera promedio | Ciclos que cada proceso pasa en la cola de listos mientras la CPU ejecuta a otro |
+| Cumplimiento de deadlines (tasa de éxito) | Procesos terminados a tiempo entre terminados |
 | Equidad | Índice de Jain sobre la fracción de su tiempo en el sistema que cada proceso usó la CPU (1 = todos reciben lo mismo) |
 | Elementos producidos y consumidos | Por buffer |
 | Tiempo bloqueado en semáforos | Ciclos promedio que un productor o consumidor ha esperado en colas de semáforos |
 
-Las primeras cinco se calculan por computador y para el sistema completo; el tiempo bloqueado en semáforos, también; los elementos producidos y consumidos, por buffer.
+Las primeras seis se calculan por computador y para el sistema completo; el tiempo bloqueado en semáforos, también; los elementos producidos y consumidos, por buffer.
+
+\newpage
 
 ## 13. Diagramas UML
 
 ![Diagrama de clases](img/uml_clases.png)
 
 ![Diagrama de estados de un proceso](img/uml_estados.png)
+
+Estos son los diagramas del sistema terminado. Los diagramas que el equipo hizo en la fase de diseño, antes de implementar los semáforos, los buffers y el reloj con hilos, están en el Apéndice (sección 19).
 
 ## 14. Resultados y conclusiones
 
@@ -251,19 +270,63 @@ Un productor y un consumidor de 12 elementos con un buffer de capacidad 2. En el
 
 Un buffer más grande no cambia el tiempo total cuando todo el trabajo es de CPU en una sola máquina, pero reduce mucho el tiempo que los procesos pasan bloqueados en semáforos (de 44.5 a 4.5 ciclos), porque absorbe las diferencias de ritmo entre productor y consumidor.
 
-## 15. Pruebas
+### 14.5 Contraste con las hipótesis iniciales del equipo
 
-Las pruebas automáticas (333 casos, sin librerías externas) se ejecutan con `avilaos.pruebas.EjecutarPruebas` (en NetBeans: clic derecho sobre el archivo y *Run File*). Cubren: semáforos (incluida una carrera de 4 hilos sobre el mismo semáforo), buffers, programas de proceso paso a paso, simulaciones completas, el reloj global (30 repeticiones con un hilo por computador para detectar carreras), el balanceo de carga, la configuración (guardar, cargar y validar), los formularios, las métricas (con valores calculados a mano) y las cuatro políticas.
+En la fase de diseño el equipo escribió qué esperaba de cada política y de los accesos remotos. Estas son esas hipótesis frente a lo que se midió:
 
-## 16. Limitaciones y trabajo futuro
+| Hipótesis del equipo | Resultado medido |
+|---|---|
+| FCFS: un proceso largo retrasa a otros con deadline cercano y el cumplimiento baja | Confirmada: cumple 50 % (4 de 8) y tiene la equidad más baja (0.38) |
+| EDF mejora el porcentaje de procesos que terminan a tiempo frente a FCFS | Confirmada: 100 % frente a 50 % con esta carga. La parte de la hipótesis sobre deadlines parecidos no se midió |
+| Round Robin mejora el tiempo de respuesta; con quantum muy pequeño aumenta el cambio de contexto y con uno muy grande se parece a FCFS | Confirmada: respuesta 7.00 frente a 8.80 de FCFS; 25 cambios con quantum 1 frente a 5 con quantum 3; con quantum 8 los resultados son idénticos a los de FCFS |
+| Prioridades apropiativas: los procesos de baja prioridad pueden esperar demasiado (inanición) | Confirmada: P2 y P5 vencen su deadline esperando |
+| Un deadline en 0 termina el proceso aunque le quede trabajo | Confirmada, también para procesos que esperan en listos, bloqueados o en la cola de un semáforo (tienen pruebas) |
+| Al cambiar la política en caliente el computador no reinicia las colas, solo cambia el criterio de selección | Confirmada: una prueba cambia de FCFS a EDF con procesos ya en la cola y el siguiente en ejecutarse es el de deadline más cercano |
+| Con acceso remoto los procesos pasan más tiempo bloqueados, baja la utilización de la CPU y el throughput es menor que en el caso local | Parcialmente confirmada: el bloqueo en semáforos y la caída de la utilización sí ocurren al crecer la latencia, pero el throughput solo es menor cuando la latencia es alta (con latencia 5 el caso remoto tarda 148 ciclos frente a 144 del local); con latencia baja el remoto termina antes porque usa dos CPU a la vez |
+
+## 15. Metodología de desarrollo, calidad y fiabilidad
+
+**Organización del trabajo.** El proyecto se dividió en tres módulos para repartir el trabajo: el núcleo y la planificación; el hardware, el reloj y la sincronización; y la interfaz, la configuración, las métricas y el informe. Antes de programar, el equipo acordó los contratos del sistema (enumeraciones e interfaces) y documentó el diseño inicial con diagramas de PlantUML (Apéndice).
+
+**Control de versiones (GitFlow).** El código está en un repositorio de GitHub con una rama `develop` y ramas por funcionalidad con un objetivo claro (por ejemplo `feat/gui`, `feat/hardware`, `interfaz-pcb`, `metricas-y-grafica`, `sincronizacion-semaforos`, `nucleo-productor-consumidor`, `reloj-hilos`, `config-buffers-gui`, `pruebas-e-informe` y `grafica-metricas`). Cada rama se integra a `develop` con un Pull Request. Los commits son pequeños y con mensajes descriptivos con prefijo (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`).
+
+**Desarrollo incremental.** Se siguió el orden que sugiere el enunciado: primero un solo computador ejecutando procesos con sus políticas, luego los semáforos y el buffer local, después el acceso remoto con latencia y varios computadores, y al final las métricas, el gráfico y el informe. Cada paso se verificó antes de seguir.
+
+**Aseguramiento de la calidad.**
+
+- 363 pruebas automáticas (sin librerías externas) escritas junto con cada funcionalidad, con valores calculados a mano; incluyen 30 repeticiones de simulaciones con hilos reales para detectar carreras.
+- Experimentos reproducibles (`ExperimentoPoliticas`) de donde salen las tablas del informe.
+- El código compila con Java 21, no usa colecciones prohibidas (se verificó buscándolas) y está documentado con Javadoc en cada clase y método importante, con una guía de concurrencia (`docs/Guia_del_codigo.md`).
+
+**Seguridad y fiabilidad.**
+
+- **Exclusión mutua:** cada estructura compartida entre hilos tiene un dueño que la protege con un `Semaphore` (sección 2). El orden de los `semWait` evita el interbloqueo del productor-consumidor.
+- **Sin recursos perdidos:** un proceso que muere por deadline a mitad del protocolo devuelve el mutex, el hueco o el elemento que tuviera tomado; un proceso bloqueado que muere sale de la cola del semáforo.
+- **Entradas inválidas:** todos los campos validan tipo y rango sin interrumpir la simulación, y un archivo de configuración inválido se rechaza indicando la línea del error.
+- **Fallos internos:** si un computador lanza una excepción durante un ciclo, el reloj se pausa y avisa al usuario en lugar de seguir con el estado a medias.
+- **Casos borde probados:** buffers que no caben en la RAM, procesos más grandes que cualquier RAM, buffer de capacidad 1 con varios productores y consumidores, latencia 0 y alta, quantum de 1, y cambios de política y de quantum en ejecución.
+
+## 16. Pruebas
+
+Las pruebas automáticas (363 casos, sin librerías externas) se ejecutan con `avilaos.pruebas.EjecutarPruebas` (en NetBeans: clic derecho sobre el archivo y *Run File*). Cubren: semáforos (incluida una carrera de 4 hilos sobre el mismo semáforo), buffers, programas de proceso paso a paso, simulaciones completas, el reloj global (30 repeticiones con un hilo por computador para detectar carreras), el balanceo de carga, la configuración (guardar, cargar y validar), los formularios, las métricas y el gráfico (con valores calculados a mano) y las cuatro políticas.
+
+## 17. Limitaciones y trabajo futuro
 
 - EDF no es apropiativa: un proceso que llega con un deadline más cercano espera a que termine el que está en ejecución. Solo Prioridades desaloja.
 - El criterio de balanceo no distingue procesos largos de cortos.
 - Los nombres de computadores, procesos y buffers no pueden contener comas (por el formato CSV).
 - Este proyecto se diseñó para extenderse en el Proyecto 2 (disco y memoria virtual, incluida la suspensión de procesos): el computador es una unidad reutilizable, las políticas, los programas de proceso y el criterio de asignación son interfaces, y la interfaz gráfica solo observa al sistema.
 
-## 17. Cómo ejecutar
+## 18. Cómo ejecutar
 
 1. Abrir el proyecto en NetBeans (Java 21 o superior).
 2. Ejecutar el proyecto (*Run*): la clase principal es `avilaos.gui.AvilaOSGui` y abre la ventana de configuración.
 3. Pruebas: `avilaos.pruebas.EjecutarPruebas`. Experimentos: `avilaos.pruebas.ExperimentoPoliticas`.
+
+## 19. Apéndice: diseño inicial del equipo
+
+Estos diagramas (hechos con PlantUML en la fase de diseño) fueron la base del proyecto. El sistema evolucionó al implementarlo: por ejemplo la interfaz `Ciclico` pasó a ser `Clockable`, los campos de RAM y de modo de la CPU pasaron a las clases `RAM` y `CPU`, `decrementarDeadline` pasó a `descontarDeadline` y se aplica a todos los procesos vivos, `admitirProceso` pasó a `recibirProceso` e `intentarAdmitirNuevos`, el estado Bloqueado se dividió en tres motivos y se agregaron los semáforos, los buffers, los programas de proceso y el reloj con hilos. Los diagramas del sistema terminado están en la sección 13.
+
+![Diagrama de procesos inicial (PlantUML)](img/diseno_inicial_estados.png)
+
+![Diagrama de clases inicial (PlantUML)](img/diseno_inicial_clases.png)
