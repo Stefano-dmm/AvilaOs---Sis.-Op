@@ -278,14 +278,16 @@ public class Computador implements Clockable {
     /** El proceso ya quedo en la cola del semaforo: lo saca de la CPU y lo pasa a Bloqueado. */
     public void bloquearPorSemaforo(Proceso proceso, String motivo) {
         pasarABloqueados(proceso, motivo, -1);
-        registrarEvento(proceso.getEtiqueta() + " se bloquea en el " + motivo);
+        registrarEvento(proceso.getEtiqueta() + " se bloquea en el " + motivo
+                + " (contexto guardado en su PCB: PC=" + proceso.getPc() + ")");
     }
 
     /** Bloqueo que termina solo despues de unos ciclos (E/S o latencia de red). */
     public void bloquearPorTiempo(Proceso proceso, int ciclos, String motivo) {
         // +1 porque el contador baja al comienzo de cada ciclo siguiente
         pasarABloqueados(proceso, motivo, ciclos + 1);
-        registrarEvento(proceso.getEtiqueta() + " se bloquea: " + motivo);
+        registrarEvento(proceso.getEtiqueta() + " se bloquea: " + motivo
+                + " (contexto guardado en su PCB: PC=" + proceso.getPc() + ")");
     }
 
     /**
@@ -502,7 +504,8 @@ public class Computador implements Clockable {
 
         switch (resultado) {
             case TERMINADO -> {
-                registrarEvento(proceso.getEtiqueta() + " completa sus instrucciones y termina en " + nombre);
+                registrarEvento(proceso.getEtiqueta() + " completa sus instrucciones y termina en " + nombre
+                        + " (PC final=" + proceso.getPc() + ")");
                 terminarProceso(proceso);
                 despacharSiguiente();
             }
@@ -534,7 +537,8 @@ public class Computador implements Clockable {
         Proceso[] vivos = procesosVivos();
         for (Proceso proceso : vivos) {
             if (proceso.getEstado() != EstadoProceso.TERMINADO && proceso.descontarDeadline()) {
-                registrarEvento(proceso.getEtiqueta() + " llega a su deadline en " + nombre + " y es terminado");
+                registrarEvento(proceso.getEtiqueta() + " llega a su deadline en " + nombre + " y es terminado (PC="
+                        + proceso.getPc() + ", le faltaban " + proceso.getTiempoRestante() + " instrucciones)");
                 terminarProceso(proceso);
             }
         }
@@ -573,8 +577,11 @@ public class Computador implements Clockable {
         if (cpu.getProcesoActual() == null || politica == null) {
             return;
         }
-        cpu.getProcesoActual().setEstado(EstadoProceso.LISTO);
-        politica.alLlegar(cpu.getProcesoActual(), colaListos);
+        Proceso saliente = cpu.getProcesoActual();
+        saliente.setEstado(EstadoProceso.LISTO);
+        politica.alLlegar(saliente, colaListos);
+        registrarEvento(nombre + " guarda el contexto de " + saliente.getEtiqueta()
+                + " en su PCB (PC=" + saliente.getPc() + ") y lo devuelve a Listos");
         cpu.cargarProceso(null);
         cpu.setModo(ModoCPU.SISTEMA_OPERATIVO);
     }
@@ -612,6 +619,8 @@ public class Computador implements Clockable {
         cpu.cargarProceso(siguiente);
         quantumRestante = quantum;
         cpu.setModo(ModoCPU.USUARIO);
+        registrarEvento(nombre + " selecciona el proceso " + siguiente.getEtiqueta()
+                + " y carga su contexto (PC restaurado=" + cpu.getPc() + ", MAR=" + cpu.getMar() + ")");
     }
 
     @Override

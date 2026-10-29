@@ -108,4 +108,4 @@ Si P muere por deadline mientras espera, `ProgramaProductorConsumidor.alTerminar
 
 ## 8. Cómo probar
 
-`avilaos.pruebas.EjecutarPruebas` corre las 363 pruebas (en NetBeans: clic derecho y *Run File*). `avilaos.pruebas.ExperimentoPoliticas` genera las tablas de `docs/resultados_experimentos.md`.
+`avilaos.pruebas.EjecutarPruebas` corre las 382 pruebas (en NetBeans: clic derecho y *Run File*). `avilaos.pruebas.ExperimentoPoliticas` genera las tablas de `docs/resultados_experimentos.md`.

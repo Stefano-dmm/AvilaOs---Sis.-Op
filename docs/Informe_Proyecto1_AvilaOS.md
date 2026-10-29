@@ -176,7 +176,7 @@ productor:            consumidor:
 - **Vista 1 (Crear proceso):** pide solo los campos del tipo elegido; el computador se elige o queda en "Automático".
 - **Buffers:** formulario para crear buffers (nombre, capacidad, anfitrión) y tabla con elementos, capacidad, valores de los tres semáforos y procesos bloqueados en cada uno.
 - **Vista 2 (un computador por pestaña):** proceso en la CPU con su PC, MAR, prioridad y deadline; si se ejecuta el SO o un programa de usuario; colas de nuevos, listos, bloqueados (con el motivo) y terminados con todos los elementos del PCB; ocupación de la RAM; selector de política y de quantum.
-- **Global:** número de ciclo, botones iniciar, pausar y paso, duración del ciclo editable en ejecución y log de eventos de texto.
+- **Global:** número de ciclo, botones iniciar, pausar y paso, duración del ciclo editable en ejecución y log de eventos de texto. El log registra cada decisión importante, incluidos los cambios de contexto: qué proceso se guarda en su PCB con qué PC (por ejemplo "guarda el contexto de P1-A en su PCB (PC=2)") y cuál se carga con su PC restaurado.
 - **Métricas:** tablas por computador y del sistema, y un gráfico contra el tiempo con un selector para elegir la métrica: utilización de la CPU, throughput, tasa de éxito (deadlines cumplidos) o tiempo de espera. Hay una línea por computador y una punteada para el sistema completo.
 
 Todos los campos validan tipo y rango (letras, decimales, vacíos, negativos y números gigantes se rechazan con un mensaje) sin interrumpir la simulación. El archivo de configuración es un CSV con líneas `CICLO_MS`, `LATENCIA_RED`, `COMPUTADOR`, `BUFFER` y `PROCESO`; al cargar un archivo inválido se indica el número de línea del error.
@@ -294,7 +294,7 @@ En la fase de diseño el equipo escribió qué esperaba de cada política y de l
 
 **Aseguramiento de la calidad.**
 
-- 363 pruebas automáticas (sin librerías externas) escritas junto con cada funcionalidad, con valores calculados a mano; incluyen 30 repeticiones de simulaciones con hilos reales para detectar carreras.
+- 382 pruebas automáticas (sin librerías externas) escritas junto con cada funcionalidad, con valores calculados a mano; incluyen 30 repeticiones de simulaciones con hilos reales para detectar carreras.
 - Experimentos reproducibles (`ExperimentoPoliticas`) de donde salen las tablas del informe.
 - El código compila con Java 21, no usa colecciones prohibidas (se verificó buscándolas) y está documentado con Javadoc en cada clase y método importante, con una guía de concurrencia (`docs/Guia_del_codigo.md`).
 
@@ -308,7 +308,7 @@ En la fase de diseño el equipo escribió qué esperaba de cada política y de l
 
 ## 16. Pruebas
 
-Las pruebas automáticas (363 casos, sin librerías externas) se ejecutan con `avilaos.pruebas.EjecutarPruebas` (en NetBeans: clic derecho sobre el archivo y *Run File*). Cubren: semáforos (incluida una carrera de 4 hilos sobre el mismo semáforo), buffers, programas de proceso paso a paso, simulaciones completas, el reloj global (30 repeticiones con un hilo por computador para detectar carreras), el balanceo de carga, la configuración (guardar, cargar y validar), los formularios, las métricas y el gráfico (con valores calculados a mano) y las cuatro políticas.
+Las pruebas automáticas (382 casos, sin librerías externas) se ejecutan con `avilaos.pruebas.EjecutarPruebas` (en NetBeans: clic derecho sobre el archivo y *Run File*). Cubren: semáforos (incluida una carrera de 4 hilos sobre el mismo semáforo), buffers, programas de proceso paso a paso, simulaciones completas, el reloj global (30 repeticiones con un hilo por computador para detectar carreras), el balanceo de carga, la configuración (guardar, cargar y validar), los formularios, las métricas y el gráfico (con valores calculados a mano) y las cuatro políticas.
 
 ## 17. Limitaciones y trabajo futuro
 

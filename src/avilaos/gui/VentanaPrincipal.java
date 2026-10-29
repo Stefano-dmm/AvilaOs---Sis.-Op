@@ -37,8 +37,6 @@ public class VentanaPrincipal extends JFrame {
     private final Configuracion config;
     /** Log de eventos de texto; se puede escribir desde cualquier hilo. */
     private final LogEventos log = new LogEventos();
-    /** Observa la CPU de cada computador tras cada ciclo y registra los cambios de proceso. */
-    private final RegistradorEventos registrador;
     /** Series de las metricas (utilizacion, throughput, tasa de exito y tiempo de espera) que dibuja el grafico. */
     private final HistorialMetricas historial;
     private PanelMetricas panelMetricas;
@@ -62,13 +60,16 @@ public class VentanaPrincipal extends JFrame {
         super("AvilaOS - Simulador distribuido");
         this.cluster = cluster;
         this.config = config;
-        this.registrador = new RegistradorEventos(cluster, log);
         this.historial = new HistorialMetricas(cluster);
         this.paneles = new PanelComputador[cluster.getCantidadComputadores()];
         this.spnDuracionCiclo = new JSpinner(new SpinnerNumberModel(config.getCicloMs(),
                 Configuracion.MIN_CICLO_MS, Configuracion.MAX_CICLO_MS, 50));
         this.reloj = cluster.crearReloj(config.getCicloMs());
-        cluster.setOyenteEventos(log::registrar);
+        // Los computadores avisan sus eventos desde sus hilos: cada mensaje se sella con el ciclo en curso del reloj.
+        cluster.setOyenteEventos(mensaje -> {
+            log.setCicloActual((int) reloj.getCicloActual());
+            log.registrar(mensaje);
+        });
         reloj.setAlCompletarCiclo(this::alCompletarCiclo);
         reloj.setAlFallar(this::alFallarElReloj);
 
@@ -149,7 +150,6 @@ public class VentanaPrincipal extends JFrame {
     private void alCompletarCiclo(long cicloReloj) {
         int ciclo = (int) cicloReloj;
         log.setCicloActual(ciclo);
-        registrador.observarCiclo();
         historial.registrar();
         SwingUtilities.invokeLater(() -> {
             lblCiclo.setText("Ciclo: " + ciclo);
