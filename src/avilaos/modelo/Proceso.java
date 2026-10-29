@@ -14,6 +14,7 @@ public class Proceso {
     private int deadline;
     private int tiempoRestante;
     private int pc;
+    private String motivoBloqueo;
 
     public Proceso(String nombre, TipoProceso tipo, int prioridad,
                    int memoriaRequerida, int deadline, int tiempoRestante) {
@@ -110,6 +111,15 @@ public class Proceso {
 
     public void setPc(int pc) {
         this.pc = pc;
+    }
+
+    /** Texto que explica por que esta bloqueado (por ejemplo el semaforo); null si no lo esta. */
+    public String getMotivoBloqueo() {
+        return motivoBloqueo;
+    }
+
+    public void setMotivoBloqueo(String motivoBloqueo) {
+        this.motivoBloqueo = motivoBloqueo;
     }
 
     public String getEtiqueta() {
