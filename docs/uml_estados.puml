@@ -2,17 +2,28 @@
 
 [*] --> Nuevo : crear proceso
 
-Nuevo --> Listo : hay RAM libre\n(admisión / largo plazo)
-Nuevo --> Nuevo : no hay RAM\n(espera en cola de nuevos)
+Nuevo --> Listo : hay RAM suficiente\n(admision)
+Listo --> Ejecucion : lo despacha el planificador
+Ejecucion --> Listo : quantum vencido o\ndesalojo por prioridad
+Ejecucion --> Terminado : completa sus instrucciones
 
-Listo --> Ejecucion : planificador\nlo selecciona
+state Bloqueado {
+  state "Esperando semaforo" as BloqSem
+  state "Esperando E/S" as BloqES
+  state "Esperando red" as BloqRed
+}
 
-Ejecucion --> Listo : desalojo\n(quantum / prioridad)
-Ejecucion --> Bloqueado : espera recurso\n(semáforo, I/O, red)
-Ejecucion --> Terminado : tiempo restante = 0\no deadline = 0
+Ejecucion --> BloqSem : semWait sin recurso
+Ejecucion --> BloqES : pide E/S
+Ejecucion --> BloqRed : accede a un buffer remoto
 
-Bloqueado --> Listo : recurso disponible\n(despertar)
+Bloqueado --> Listo : semSignal lo despierta,\ntermina la E/S o\npasa la latencia de red
 
-Terminado --> [*] : libera RAM\ny sale del sistema
+Nuevo --> Terminado : deadline = 0
+Listo --> Terminado : deadline = 0
+Ejecucion --> Terminado : deadline = 0
+Bloqueado --> Terminado : deadline = 0
+
+Terminado --> [*] : libera su RAM
 
 @enduml
