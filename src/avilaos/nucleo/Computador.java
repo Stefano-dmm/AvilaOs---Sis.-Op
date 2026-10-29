@@ -453,8 +453,9 @@ public class Computador implements Clockable {
      * 1) procesa los despertares que dejaron otros computadores;
      * 2) avanza los bloqueos por tiempo (E/S y red);
      * 3) si la CPU esta libre despacha segun la politica (o desaloja por prioridad);
-     * 4) ejecuta UNA instruccion del proceso en la CPU con su programa;
-     * 5) baja el deadline de todos los procesos vivos y termina a los que llegan a 0.
+     * 4) cuenta un ciclo de espera a cada proceso que queda en la cola de listos (la CPU es de otro);
+     * 5) ejecuta UNA instruccion del proceso en la CPU con su programa;
+     * 6) baja el deadline de todos los procesos vivos y termina a los que llegan a 0.
      */
     public void onTick(int cicloGlobal) {
         cicloActual = cicloGlobal;
@@ -470,12 +471,25 @@ public class Computador implements Clockable {
             despacharSiguiente();
         }
 
+        contarEsperaEnListos();
         if (cpu.getProcesoActual() == null) {
             cpu.setModo(ModoCPU.SISTEMA_OPERATIVO);
         } else {
             ejecutarProcesoActual();
         }
         vencerDeadlines();
+    }
+
+    /**
+     * Tiempo de espera: a cada proceso que sigue en la cola de listos despues de despachar se le suma un ciclo,
+     * porque durante este ciclo la CPU la usa otro proceso.
+     */
+    private void contarEsperaEnListos() {
+        Nodo<Proceso> actual = colaListos.getLista().getCabeza();
+        while (actual != null) {
+            actual.getDato().sumarCicloEnListos();
+            actual = actual.getSiguiente();
+        }
     }
 
     /** Ejecuta la instruccion de este ciclo con el programa del proceso y reacciona a lo que ocurra. */

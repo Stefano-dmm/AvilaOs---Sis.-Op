@@ -2,25 +2,29 @@ package avilaos.gui;
 
 import avilaos.estructuras.Nodo;
 import avilaos.metricas.CalculadorMetricas;
-import avilaos.metricas.HistorialUtilizacion;
+import avilaos.metricas.HistorialMetricas;
+import avilaos.metricas.Metrica;
 import avilaos.metricas.ResumenBuffer;
 import avilaos.metricas.ResumenMetricas;
 import avilaos.nucleo.Cluster;
 import avilaos.nucleo.Computador;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import javax.swing.BorderFactory;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.table.AbstractTableModel;
 
-/** Pestana de metricas: tabla por computador y del sistema, mas el grafico de utilizacion. */
+/** Pestana de metricas: tablas por computador y del sistema, y un grafico con selector de metrica. */
 public class PanelMetricas extends JPanel {
 
     private static final String[] COLUMNAS = {
-        "Computador", "Throughput", "Utilizacion CPU", "Respuesta prom.",
-        "Cumplimiento", "Equidad (Jain)", "Bloqueo semaforos", "Completados", "Terminados"
+        "Computador", "Throughput", "Utilizacion CPU", "Respuesta prom.", "Espera prom.",
+        "Tasa de exito", "Equidad (Jain)", "Bloqueo semaforos", "Completados", "Terminados"
     };
     private static final String[] COLUMNAS_BUFFERS = {
         "Buffer", "Anfitrion", "Elementos producidos", "Elementos consumidos", "En el buffer", "Capacidad"
@@ -29,15 +33,17 @@ public class PanelMetricas extends JPanel {
     private final Cluster cluster;
     private final ModeloMetricas modelo = new ModeloMetricas();
     private final ModeloBuffers modeloBuffers = new ModeloBuffers();
-    private final GraficoUtilizacion grafico;
+    private final GraficoMetricas grafico;
+    private final JComboBox<Metrica> selectorMetrica = new JComboBox<>(Metrica.values());
 
-    /** Arma las dos tablas y el grafico. */
-    public PanelMetricas(Cluster cluster, HistorialUtilizacion historial) {
+    /** Arma las dos tablas y el grafico, con un selector para elegir la metrica que se dibuja. */
+    public PanelMetricas(Cluster cluster, HistorialMetricas historial) {
         this.cluster = cluster;
-        this.grafico = new GraficoUtilizacion(historial);
+        this.grafico = new GraficoMetricas(historial);
+        selectorMetrica.addActionListener(e -> grafico.setMetrica((Metrica) selectorMetrica.getSelectedItem()));
 
-        JScrollPane scrollTabla = envolver("Metricas de rendimiento (throughput en procesos por ciclo; "
-                + "respuesta y bloqueo en ciclos; cumplimiento = deadlines cumplidos)", new JTable(modelo));
+        JScrollPane scrollTabla = envolver("Metricas de rendimiento (throughput en procesos por ciclo; respuesta, espera "
+                + "y bloqueo en ciclos; tasa de exito = deadlines cumplidos)", new JTable(modelo));
         scrollTabla.setPreferredSize(new Dimension(100, 40 + 22 * (cluster.getCantidadComputadores() + 1)));
         JScrollPane scrollBuffers = envolver("Productor-consumidor por buffer", new JTable(modeloBuffers));
         scrollBuffers.setPreferredSize(new Dimension(100, 90));
@@ -47,7 +53,11 @@ public class PanelMetricas extends JPanel {
         tablas.add(scrollBuffers, BorderLayout.CENTER);
 
         JPanel contenedorGrafico = new JPanel(new BorderLayout());
-        contenedorGrafico.setBorder(BorderFactory.createTitledBorder("Utilizacion de CPU vs tiempo"));
+        contenedorGrafico.setBorder(BorderFactory.createTitledBorder("Grafico de metricas vs tiempo"));
+        JPanel filaSelector = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        filaSelector.add(new JLabel("Metrica:"));
+        filaSelector.add(selectorMetrica);
+        contenedorGrafico.add(filaSelector, BorderLayout.NORTH);
         contenedorGrafico.add(grafico, BorderLayout.CENTER);
 
         setLayout(new BorderLayout(8, 8));
@@ -124,10 +134,11 @@ public class PanelMetricas extends JPanel {
                 case 1 -> decimal(r.throughput());
                 case 2 -> porcentaje(r.utilizacion());
                 case 3 -> decimal(r.respuestaPromedio());
-                case 4 -> porcentaje(r.cumplimiento());
-                case 5 -> decimal(r.equidad());
-                case 6 -> decimal(r.bloqueoSemaforoPromedio());
-                case 7 -> r.completados();
+                case 4 -> decimal(r.esperaPromedio());
+                case 5 -> porcentaje(r.cumplimiento());
+                case 6 -> decimal(r.equidad());
+                case 7 -> decimal(r.bloqueoSemaforoPromedio());
+                case 8 -> r.completados();
                 default -> r.terminados();
             };
         }

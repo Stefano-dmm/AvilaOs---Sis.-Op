@@ -4,7 +4,7 @@ import avilaos.config.ArchivoConfiguracion;
 import avilaos.config.Configuracion;
 import avilaos.estructuras.Nodo;
 import avilaos.hardware.RelojGlobal;
-import avilaos.metricas.HistorialUtilizacion;
+import avilaos.metricas.HistorialMetricas;
 import avilaos.nucleo.Cluster;
 import avilaos.nucleo.Computador;
 import java.awt.BorderLayout;
@@ -39,8 +39,8 @@ public class VentanaPrincipal extends JFrame {
     private final LogEventos log = new LogEventos();
     /** Observa la CPU de cada computador tras cada ciclo y registra los cambios de proceso. */
     private final RegistradorEventos registrador;
-    /** Serie de utilizacion de CPU por computador que dibuja el grafico. */
-    private final HistorialUtilizacion historial;
+    /** Series de las metricas (utilizacion, throughput, tasa de exito y tiempo de espera) que dibuja el grafico. */
+    private final HistorialMetricas historial;
     private PanelMetricas panelMetricas;
     private PanelCrearProceso panelCrear;
     private PanelBuffers panelBuffers;
@@ -63,7 +63,7 @@ public class VentanaPrincipal extends JFrame {
         this.cluster = cluster;
         this.config = config;
         this.registrador = new RegistradorEventos(cluster, log);
-        this.historial = new HistorialUtilizacion(cluster);
+        this.historial = new HistorialMetricas(cluster);
         this.paneles = new PanelComputador[cluster.getCantidadComputadores()];
         this.spnDuracionCiclo = new JSpinner(new SpinnerNumberModel(config.getCicloMs(),
                 Configuracion.MIN_CICLO_MS, Configuracion.MAX_CICLO_MS, 50));

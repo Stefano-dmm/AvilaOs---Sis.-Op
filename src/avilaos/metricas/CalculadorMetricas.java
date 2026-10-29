@@ -53,6 +53,8 @@ public final class CalculadorMetricas {
 
     private static final class Acumulador {
 
+        private long sumaEspera;
+        private int procesosVistos;
         private long sumaBloqueoSemaforo;
         private int comunicantes;
         private long ciclosOcupados;
@@ -89,6 +91,10 @@ public final class CalculadorMetricas {
         }
 
         private void sumarProceso(Proceso p, int ahora) {
+            if (p.getCicloLlegada() >= 0) {
+                sumaEspera += p.getCiclosEnListos();
+                procesosVistos++;
+            }
             if (p.getTipo() == TipoProceso.PRODUCTOR || p.getTipo() == TipoProceso.CONSUMIDOR) {
                 sumaBloqueoSemaforo += p.getCiclosBloqueadoSemaforo();
                 comunicantes++;
@@ -125,7 +131,8 @@ public final class CalculadorMetricas {
                     ? (sumaFraccion * sumaFraccion) / (conFraccion * sumaFraccionCuadrado)
                     : Double.NaN;
             double bloqueo = comunicantes > 0 ? (double) sumaBloqueoSemaforo / comunicantes : Double.NaN;
-            return new ResumenMetricas(nombre, throughput, utilizacion, respuesta, cumplimiento,
+            double espera = procesosVistos > 0 ? (double) sumaEspera / procesosVistos : Double.NaN;
+            return new ResumenMetricas(nombre, throughput, utilizacion, respuesta, espera, cumplimiento,
                     equidad, bloqueo, completados, terminados);
         }
     }

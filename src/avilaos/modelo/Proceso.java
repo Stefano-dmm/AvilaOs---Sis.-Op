@@ -53,6 +53,8 @@ public class Proceso {
     private int bloqueoRestante = -1;
     /** Ciclos acumulados bloqueado en colas de semaforos (metrica de tiempo bloqueado). */
     private int ciclosBloqueadoSemaforo;
+    /** Ciclos acumulados en la cola de listos mientras la CPU ejecutaba a otro proceso (tiempo de espera). */
+    private int ciclosEnListos;
 
     /** Crea un proceso nuevo con el estado NUEVO; valida que el nombre no este vacio y que los numeros no sean negativos. */
     public Proceso(String nombre, TipoProceso tipo, int prioridad,
@@ -216,6 +218,16 @@ public class Proceso {
     /** Suma un ciclo de tiempo bloqueado en un semaforo (lo llama el computador por cada ciclo que el proceso espera). */
     public void sumarCicloBloqueadoSemaforo() {
         ciclosBloqueadoSemaforo++;
+    }
+
+    /** Tiempo de espera: ciclos que el proceso ha pasado en la cola de listos esperando la CPU. */
+    public int getCiclosEnListos() {
+        return ciclosEnListos;
+    }
+
+    /** Suma un ciclo de espera en la cola de listos (lo llama el computador, una vez por ciclo, por cada proceso listo). */
+    public void sumarCicloEnListos() {
+        ciclosEnListos++;
     }
 
     /** Semaforo en cuya cola espera el proceso; null si no esta bloqueado en ninguno. */
