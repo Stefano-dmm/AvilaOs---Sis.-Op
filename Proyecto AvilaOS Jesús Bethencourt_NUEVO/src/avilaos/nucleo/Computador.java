@@ -232,6 +232,7 @@ public class Computador implements Ciclico {
 
         colaListos.getLista().eliminar(proceso);
         colaBloqueados.getLista().eliminar(proceso);
+        colaSuspendidos.getLista().eliminar(proceso);
         colaNuevos.getLista().eliminar(proceso);
 
         if (proceso.getEstado() != EstadoProceso.NUEVO) {
@@ -252,6 +253,81 @@ public class Computador implements Ciclico {
         } else {
             colaListos.encolar(proceso);
         }
+    }
+    
+    public boolean suspenderProceso(Proceso proceso) {
+        if (proceso == null) {
+            return false;
+        }
+        if (gestorMemoriaVirtual == null && discoSecundario == null) {
+            return false;
+        }
+
+        if (procesoEnCPU == proceso) {
+            procesoEnCPU = null;
+            modoCPU = ModoCPU.SISTEMA_OPERATIVO;
+        }
+
+        colaListos.getLista().eliminar(proceso);
+        colaBloqueados.getLista().eliminar(proceso);
+        colaNuevos.getLista().eliminar(proceso);
+
+        if (proceso.getEstado() != EstadoProceso.NUEVO) {
+            liberarMemoria(proceso.getMemoriaRequerida());
+        }
+
+        boolean respaldado;
+        if (gestorMemoriaVirtual != null) {
+            respaldado = gestorMemoriaVirtual.suspenderProceso(proceso);
+        } else {
+            if (discoSecundario.contieneProceso(proceso)) {
+                respaldado = true;
+            } else {
+                respaldado = discoSecundario.guardarProceso(proceso);
+            }
+            if (respaldado) {
+                proceso.setEstado(EstadoProceso.SUSPENDIDO);
+            }
+        }
+
+        if (!respaldado) {
+            return false;
+        }
+
+        if (!colaSuspendidos.getLista().contiene(proceso)) {
+            colaSuspendidos.encolar(proceso);
+        }
+        return true;
+    }
+
+    public boolean reanudarProceso(Proceso proceso) {
+        if (proceso == null) {
+            return false;
+        }
+        if (proceso.getMemoriaRequerida() > getRamLibre()) {
+            return false;
+        }
+
+        boolean reanudado;
+        if (gestorMemoriaVirtual != null) {
+            reanudado = gestorMemoriaVirtual.reanudarProceso(proceso);
+        } else if (discoSecundario != null && discoSecundario.contieneProceso(proceso)) {
+            reanudado = discoSecundario.liberarProceso(proceso);
+            if (reanudado) {
+                proceso.setEstado(EstadoProceso.LISTO);
+            }
+        } else {
+            reanudado = true;
+        }
+
+        if (!reanudado) {
+            return false;
+        }
+
+        reservarMemoria(proceso.getMemoriaRequerida());
+        colaSuspendidos.getLista().eliminar(proceso);
+        pasarAListos(proceso);
+        return true;
     }
 
     public static void reiniciarContadorIds() {
