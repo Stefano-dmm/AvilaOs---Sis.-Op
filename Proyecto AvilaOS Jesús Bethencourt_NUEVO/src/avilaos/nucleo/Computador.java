@@ -1,4 +1,4 @@
- package avilaos.nucleo;
+package avilaos.nucleo;
 
 import avilaos.memoria.DiscoSecundario;
 import avilaos.memoria.GestorMemoriaVirtual;
@@ -149,7 +149,7 @@ public class Computador implements Ciclico {
     public Cola<Proceso> getColaTerminados() {
         return colaTerminados;
     }
-    
+
     public Cola<Proceso> getColaSuspendidos() {
         return colaSuspendidos;
     }
@@ -235,7 +235,12 @@ public class Computador implements Ciclico {
         colaSuspendidos.getLista().eliminar(proceso);
         colaNuevos.getLista().eliminar(proceso);
 
-        if (proceso.getEstado() != EstadoProceso.NUEVO) {
+        if (gestorMemoriaVirtual != null) {
+            gestorMemoriaVirtual.getProcesosSuspendidos().eliminar(proceso);
+        }
+
+        if (proceso.getEstado() != EstadoProceso.NUEVO
+                && proceso.getEstado() != EstadoProceso.SUSPENDIDO) {
             liberarMemoria(proceso.getMemoriaRequerida());
         }
 
@@ -254,7 +259,7 @@ public class Computador implements Ciclico {
             colaListos.encolar(proceso);
         }
     }
-    
+
     public boolean suspenderProceso(Proceso proceso) {
         if (proceso == null) {
             return false;
@@ -272,27 +277,28 @@ public class Computador implements Ciclico {
         colaBloqueados.getLista().eliminar(proceso);
         colaNuevos.getLista().eliminar(proceso);
 
-        if (proceso.getEstado() != EstadoProceso.NUEVO) {
-            liberarMemoria(proceso.getMemoriaRequerida());
-        }
-
         boolean respaldado;
         if (gestorMemoriaVirtual != null) {
             respaldado = gestorMemoriaVirtual.suspenderProceso(proceso);
+            if (respaldado && proceso.getEstado() != EstadoProceso.NUEVO) {
+                liberarMemoria(proceso.getMemoriaRequerida());
+            }
         } else {
+            if (proceso.getEstado() != EstadoProceso.NUEVO) {
+                liberarMemoria(proceso.getMemoriaRequerida());
+            }
             if (discoSecundario.contieneProceso(proceso)) {
                 respaldado = true;
             } else {
                 respaldado = discoSecundario.guardarProceso(proceso);
-            }
-            if (respaldado) {
-                proceso.setEstado(EstadoProceso.SUSPENDIDO);
             }
         }
 
         if (!respaldado) {
             return false;
         }
+
+        proceso.setEstado(EstadoProceso.SUSPENDIDO);
 
         if (!colaSuspendidos.getLista().contiene(proceso)) {
             colaSuspendidos.encolar(proceso);
@@ -304,27 +310,34 @@ public class Computador implements Ciclico {
         if (proceso == null) {
             return false;
         }
-        if (proceso.getMemoriaRequerida() > getRamLibre()) {
-            return false;
-        }
 
         boolean reanudado;
         if (gestorMemoriaVirtual != null) {
-            reanudado = gestorMemoriaVirtual.reanudarProceso(proceso);
-        } else if (discoSecundario != null && discoSecundario.contieneProceso(proceso)) {
-            reanudado = discoSecundario.liberarProceso(proceso);
-            if (reanudado) {
-                proceso.setEstado(EstadoProceso.LISTO);
+            if (gestorMemoriaVirtual.getRam().getMemoriaDisponible() < proceso.getMemoriaRequerida()
+                    || proceso.getMemoriaRequerida() > getRamLibre()) {
+                return false;
             }
+            reanudado = gestorMemoriaVirtual.reanudarProceso(proceso);
+            if (!reanudado) {
+                return false;
+            }
+            reservarMemoria(proceso.getMemoriaRequerida());
         } else {
-            reanudado = true;
+            if (proceso.getMemoriaRequerida() > getRamLibre()) {
+                return false;
+            }
+            if (discoSecundario != null && discoSecundario.contieneProceso(proceso)) {
+                reanudado = discoSecundario.liberarProceso(proceso);
+            } else {
+                reanudado = true;
+            }
+            if (!reanudado) {
+                return false;
+            }
+            reservarMemoria(proceso.getMemoriaRequerida());
         }
 
-        if (!reanudado) {
-            return false;
-        }
-
-        reservarMemoria(proceso.getMemoriaRequerida());
+        proceso.setEstado(EstadoProceso.LISTO);
         colaSuspendidos.getLista().eliminar(proceso);
         pasarAListos(proceso);
         return true;
@@ -425,6 +438,7 @@ public class Computador implements Ciclico {
                 + ", nuevos=" + colaNuevos.getTamanio()
                 + ", listos=" + colaListos.getTamanio()
                 + ", bloq=" + colaBloqueados.getTamanio()
+                + ", susp=" + colaSuspendidos.getTamanio()
                 + ", term=" + colaTerminados.getTamanio() + "]";
     }
 }
