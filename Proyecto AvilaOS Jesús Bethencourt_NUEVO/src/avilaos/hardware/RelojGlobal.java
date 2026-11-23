@@ -4,50 +4,77 @@
  */
 package avilaos.hardware;
 
+import avilaos.estructuras.ListaEnlazada;
+import avilaos.estructuras.Nodo;
+
 /**
  *
  * @author bethe
  */
-import java.util.ArrayList;
-
 public class RelojGlobal implements Runnable {
+
     private long cicloActual;
     private boolean activo;
-    private long velocidadMs; // Tiempo en milisegundos por cada tic del reloj
-    private ArrayList<Clockable> suscriptores;
+    private long velocidadMs; // Tiempo en milisegundos por cada tic del reloj[cite: 50]
+    private final ListaEnlazada<Clockable> suscriptores;
 
     public RelojGlobal(long velocidadMs) {
         this.cicloActual = 0;
         this.activo = false;
         this.velocidadMs = velocidadMs;
-        this.suscriptores = new ArrayList<>();
+        this.suscriptores = new ListaEnlazada<>();
     }
 
     public void suscribir(Clockable c) {
-        if (!suscriptores.contains(c)) {
-            suscriptores.add(c);
+        if (c == null) {
+            return;
+        }
+        synchronized (suscriptores) {
+            if (!suscriptores.contiene(c)) {
+                suscriptores.agregarAlFinal(c);
+            }
         }
     }
 
     public void desuscribir(Clockable c) {
-        suscriptores.remove(c);
+        if (c == null) {
+            return;
+        }
+        synchronized (suscriptores) {
+            suscriptores.eliminar(c);
+        }
     }
 
     private void notificarSuscriptores() {
-        // Recorremos los suscriptores para avisarles que ocurrió un nuevo ciclo
-        for (int i = 0; i < suscriptores.size(); i++) {
-            suscriptores.get(i).tic(cicloActual);
+        synchronized (suscriptores) {
+            Nodo<Clockable> actual = suscriptores.getCabeza();
+            while (actual != null) {
+                Clockable suscriptor = actual.getDato();
+                if (suscriptor != null) {
+                    suscriptor.tic(cicloActual);
+                }
+                actual = actual.getSiguiente();
+            }
         }
     }
 
     @Override
     public void run() {
-        activo = true;
-        while (activo) {
+        synchronized (this) {
+            activo = true;
+        }
+        while (isActivo()) {
             try {
                 Thread.sleep(velocidadMs);
-                cicloActual++;
-                notificarSuscriptores();
+                long cicloAEnviar;
+                synchronized (this) {
+                    if (!activo) {
+                        break;
+                    }
+                    cicloActual++;
+                    cicloAEnviar = cicloActual;
+                }
+                notificarSuscriptoresConCiclo(cicloAEnviar);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
@@ -55,21 +82,35 @@ public class RelojGlobal implements Runnable {
         }
     }
 
-    public void detener() {
-        this.activo = false;
+    private void notificarSuscriptoresConCiclo(long ciclo) {
+        synchronized (suscriptores) {
+            Nodo<Clockable> actual = suscriptores.getCabeza();
+            while (actual != null) {
+                Clockable suscriptor = actual.getDato();
+                if (suscriptor != null) {
+                    suscriptor.tic(ciclo);
+                }
+                actual = actual.getSiguiente();
+            }
+        }
     }
 
-    //Getters y Setters
+    public void detener() {
+        synchronized (this) {
+            this.activo = false;
+        }
+    }
 
-    public long getCicloActual() {
+    // Getters y Setters[cite: 51]
+    public synchronized long getCicloActual() {
         return cicloActual;
     }
 
-    public void setVelocidadMs(long velocidadMs) {
+    public synchronized void setVelocidadMs(long velocidadMs) {
         this.velocidadMs = velocidadMs;
     }
 
-    public boolean isActivo() {
+    public synchronized boolean isActivo() {
         return activo;
     }
 }
