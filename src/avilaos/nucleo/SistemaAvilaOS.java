@@ -5,10 +5,13 @@ import avilaos.archivos.Permiso;
 import avilaos.archivos.SistemaArchivos;
 import avilaos.archivos.TipoNodo;
 import avilaos.config.Configuracion;
+import avilaos.config.DefinicionProcesos;
 import avilaos.disco.Disco;
 import avilaos.disco.OperacionES;
 import avilaos.disco.PoliticaDisco;
 import avilaos.disco.SolicitudES;
+import avilaos.estructuras.ListaEnlazada;
+import avilaos.estructuras.Nodo;
 import avilaos.modelo.PoliticaPlanificacion;
 import avilaos.modelo.Proceso;
 import avilaos.modelo.TipoProceso;
@@ -86,6 +89,37 @@ public class SistemaAvilaOS {
         cluster.agregarComponente(disco);
         disco.setRegistro(cluster::registrarEvento);
         return new SistemaAvilaOS(cluster, computador, disco, archivos, controlador);
+    }
+
+    /** Arma el sistema con lo que dicen los dos JSON: el del sistema de archivos (disco) y el de procesos y configuración (computador, swap, políticas). */
+    public static SistemaAvilaOS construir(DefinicionSistemaArchivos archivos, DefinicionProcesos procesos) {
+        return construir(archivos, procesos.ram(), procesos.quantum(), procesos.politica(), procesos.bloquesSwap(),
+                procesos.politicaDisco(), procesos.velocidadCabezal());
+    }
+
+    /**
+     * Crea y entrega al computador todos los procesos del JSON. Primero crea y valida todos y solo entonces los
+     * entrega, así un proceso inválido no deja la carga a medias. Devuelve cuántos procesos cargó.
+     */
+    public int lanzarProcesos(DefinicionProcesos definicion) {
+        ListaEnlazada<Proceso> creados = new ListaEnlazada<>();
+        Nodo<DefinicionProcesos.EntradaProceso> actual = definicion.procesos().getCabeza();
+        while (actual != null) {
+            DefinicionProcesos.EntradaProceso e = actual.getDato();
+            try {
+                creados.agregarAlFinal(crearProcesoArchivo(e.nombre(), e.prioridad(), e.memoria(), e.deadline(), e.instrucciones(),
+                        e.operacion(), e.ruta(), e.usuario(), e.tipoNuevo(), e.bloquesNuevo(), e.permisoNuevo(), e.nuevoNombre()));
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException("El proceso " + e.nombre() + ": " + ex.getMessage(), ex);
+            }
+            actual = actual.getSiguiente();
+        }
+        Nodo<Proceso> proceso = creados.getCabeza();
+        while (proceso != null) {
+            iniciar(proceso.getDato());
+            proceso = proceso.getSiguiente();
+        }
+        return creados.getTamanio();
     }
 
     public Cluster getCluster() {

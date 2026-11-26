@@ -60,6 +60,8 @@ public class Disco implements Clockable {
     /** Política con la que se eligió la solicitud en servicio (para contar las atendidas por política). */
     private PoliticaDisco politicaDelServicio;
 
+    /** Si es verdadero el disco termina lo que está atendiendo pero no empieza solicitudes nuevas, para dejar que la cola se llene y comparar políticas. */
+    private volatile boolean retenido;
     /** Quien se entera de las solicitudes terminadas. */
     private OyenteDisco oyente;
     /** Destino de los mensajes del log (el cluster); puede ser null. */
@@ -163,6 +165,15 @@ public class Disco implements Clockable {
         }
     }
 
+    /** Retener: el disco no empieza solicitudes nuevas y la cola se acumula; soltar lo deja atender con la política activa. */
+    public void setRetenido(boolean retenido) {
+        this.retenido = retenido;
+    }
+
+    public boolean isRetenido() {
+        return retenido;
+    }
+
     public PoliticaDisco getNombrePolitica() {
         candado.acquireUninterruptibly();
         try {
@@ -190,7 +201,7 @@ public class Disco implements Clockable {
         SolicitudES terminada = null;
         candado.acquireUninterruptibly();
         try {
-            if (enServicio == null && !cola.estaVacia()) {
+            if (enServicio == null && !cola.estaVacia() && !retenido) {
                 iniciarServicio((int) ciclo);
             }
             if (enServicio != null) {
