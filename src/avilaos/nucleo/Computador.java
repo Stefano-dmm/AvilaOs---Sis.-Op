@@ -1,7 +1,9 @@
 package avilaos.nucleo;
 
+import avilaos.contratos.CriterioSuspension;
 import avilaos.contratos.PoliticaPlanificacionStrategy;
 import avilaos.contratos.ProgramaProceso;
+import avilaos.disco.Disco;
 import avilaos.estructuras.Cola;
 import avilaos.hardware.CPU;
 import avilaos.hardware.Clockable;
@@ -72,8 +74,20 @@ public class Computador implements Clockable {
     private final Cola<Proceso> colaListos = new Cola<>();
     /** COLA DE BLOQUEADOS: procesos que esperan un semaforo, una E/S o la red. Cada uno tiene su motivo de bloqueo. */
     private final Cola<Proceso> colaBloqueados = new Cola<>();
+    /** COLA DE LISTOS/SUSPENDIDOS: procesos listos cuya memoria está en el área de intercambio; esperan a que haya RAM para volver. */
+    private final Cola<Proceso> colaListosSuspendidos = new Cola<>();
+    /** COLA DE BLOQUEADOS/SUSPENDIDOS: procesos bloqueados cuya memoria está en el área de intercambio; al ocurrir su evento pasan a Listos/Suspendidos. */
+    private final Cola<Proceso> colaBloqueadosSuspendidos = new Cola<>();
     /** COLA DE TERMINADOS: procesos que acabaron (por completarse o por deadline); ya liberaron su RAM. */
     private final Cola<Proceso> colaTerminados = new Cola<>();
+    /** Disco local; null en un computador que no lo tiene (Proyecto 1), y entonces no hay suspensión de procesos. */
+    private Disco disco;
+    /** Planificador a mediano plazo (suspende y reactiva procesos); null si no hay disco. */
+    private PlanificadorMedianoPlazo medianoPlazo;
+    /** Veces que se suspendió un proceso (escritura al swap terminada). */
+    private int suspensiones;
+    /** Veces que se reactivó un proceso (lectura del swap terminada). */
+    private int reactivaciones;
 
     /** Cluster al que pertenece (para buscar otros computadores, la latencia de red y el log de eventos). */
     private Cluster cluster;
@@ -84,8 +98,14 @@ public class Computador implements Clockable {
      */
     private final Cola<Proceso> despertares = new Cola<>();
     /**
-     * Semaphore de Java que protege la bandeja despertares: la escribe el hilo de otro computador (recibirDespertar)
-     * mientras el de este la lee (procesarDespertares). Es el unico punto por el que otro computador "entra" aqui.
+     * BUZON DE TAREAS DEL SO: trabajo que el hilo del disco deja para este computador (terminar una suspension, una
+     * reactivacion, despertar a un proceso de E/S). Lo vacia este computador al comienzo de su ciclo, como una
+     * interrupcion; asi solo su hilo toca sus colas. Protegido por candadoDespertares.
+     */
+    private final Cola<Runnable> buzon = new Cola<>();
+    /**
+     * Semaphore de Java que protege la bandeja despertares y el buzon: los escribe el hilo de otro computador o el del
+     * disco (recibirDespertar, dejarTarea) mientras el de este los lee. Es el unico punto por el que otros hilos "entran" aqui.
      */
     private final Semaphore candadoDespertares = new Semaphore(1);
 
@@ -139,7 +159,55 @@ public class Computador implements Clockable {
     /** Procesos vivos de este computador: en CPU, listos, bloqueados y esperando memoria. */
     public int getCargaActual() {
         return (cpu.getProcesoActual() == null ? 0 : 1) + colaNuevos.getTamanio()
-                + colaListos.getTamanio() + colaBloqueados.getTamanio();
+                + colaListos.getTamanio() + colaBloqueados.getTamanio()
+                + colaListosSuspendidos.getTamanio() + colaBloqueadosSuspendidos.getTamanio();
+    }
+
+    /** Disco local de este computador; null si no tiene. */
+    public Disco getDisco() {
+        return disco;
+    }
+
+    /** Planificador a mediano plazo; null si el computador no tiene disco. */
+    public PlanificadorMedianoPlazo getMedianoPlazo() {
+        return medianoPlazo;
+    }
+
+    /** Conecta el disco local y crea el planificador a mediano plazo con el criterio dado para elegir qué proceso suspender. */
+    public void conectarDisco(Disco disco, CriterioSuspension criterio) {
+        if (disco == null || criterio == null) {
+            throw new IllegalArgumentException("Falta el disco o el criterio de suspensión.");
+        }
+        this.disco = disco;
+        this.medianoPlazo = new PlanificadorMedianoPlazo(this, disco, criterio);
+    }
+
+    public int getSuspensiones() {
+        return suspensiones;
+    }
+
+    public int getReactivaciones() {
+        return reactivaciones;
+    }
+
+    /** Cuenta una suspensión terminada (lo llama el planificador a mediano plazo). */
+    void contarSuspension() {
+        suspensiones++;
+    }
+
+    /** Cuenta una reactivación terminada (lo llama el planificador a mediano plazo). */
+    void contarReactivacion() {
+        reactivaciones++;
+    }
+
+    /** Deja trabajo para que este computador lo haga al comienzo de su siguiente ciclo. Se puede llamar desde el hilo del disco. */
+    public void dejarTarea(Runnable tarea) {
+        candadoDespertares.acquireUninterruptibly();
+        try {
+            buzon.encolar(tarea);
+        } finally {
+            candadoDespertares.release();
+        }
     }
 
     public CPU getCpu() {
@@ -234,6 +302,14 @@ public class Computador implements Clockable {
         return colaTerminados;
     }
 
+    public Cola<Proceso> getColaListosSuspendidos() {
+        return colaListosSuspendidos;
+    }
+
+    public Cola<Proceso> getColaBloqueadosSuspendidos() {
+        return colaBloqueadosSuspendidos;
+    }
+
     /** Reserva RAM que no es de un proceso (por ejemplo la de un buffer). */
     public void reservarMemoria(int cantidad) {
         if (!ram.reservar(cantidad)) {
@@ -273,7 +349,15 @@ public class Computador implements Clockable {
         proceso.setEstado(EstadoProceso.BLOQUEADO);
         proceso.setMotivoBloqueo(motivo);
         proceso.setBloqueoRestante(ciclos);
+        proceso.setCicloBloqueo(cicloActual);
         colaBloqueados.encolar(proceso);
+    }
+
+    /** Bloqueo por E/S de disco: no termina solo, sino cuando el disco atiende la solicitud y despierta al proceso. */
+    public void bloquearPorDisco(Proceso proceso, String motivo) {
+        pasarABloqueados(proceso, motivo, -1);
+        registrarEvento(proceso.getEtiqueta() + " se bloquea: " + motivo
+                + " (contexto guardado en su PCB: PC=" + proceso.getPc() + ")");
     }
 
     /** El proceso ya quedo en la cola del semaforo: lo saca de la CPU y lo pasa a Bloqueado. */
@@ -314,8 +398,9 @@ public class Computador implements Clockable {
         }
     }
 
-    /** Pasa a Listos a los procesos que otro computador desperto. Se llama al comienzo de cada ciclo. */
+    /** Hace el trabajo que el disco dejó en el buzón y pasa a Listos a los procesos que otro computador desperto. Se llama al comienzo de cada ciclo. */
     public void procesarDespertares() {
+        ejecutarTareasDelBuzon();
         while (true) {
             Proceso proceso;
             candadoDespertares.acquireUninterruptibly();
@@ -327,10 +412,40 @@ public class Computador implements Clockable {
             if (proceso == null) {
                 return;
             }
-            if (proceso.getEstado() == EstadoProceso.BLOQUEADO && colaBloqueados.getLista().eliminar(proceso)) {
-                desbloquear(proceso);
+            despertar(proceso);
+        }
+    }
+
+    /** Vacía el buzón: cada tarea la deja otro hilo (el del disco) y la hace aquí el hilo de este computador. */
+    private void ejecutarTareasDelBuzon() {
+        while (true) {
+            Runnable tarea;
+            candadoDespertares.acquireUninterruptibly();
+            try {
+                tarea = buzon.desencolar();
+            } finally {
+                candadoDespertares.release();
+            }
+            if (tarea == null) {
+                return;
+            }
+            tarea.run();
+        }
+    }
+
+    /**
+     * Ocurre el evento que esperaba el proceso (semaforo liberado, E/S de disco terminada). Un Bloqueado pasa a Listo; un
+     * Bloqueado/Suspendido pasa a Listo/Suspendido, porque su memoria sigue en el disco. Ignora al que ya no esta bloqueado.
+     */
+    public void despertar(Proceso proceso) {
+        if (proceso.getEstado() == EstadoProceso.BLOQUEADO && colaBloqueados.getLista().eliminar(proceso)) {
+            desbloquear(proceso);
+            if (!proceso.isEventoPendiente()) {
                 registrarEvento(proceso.getEtiqueta() + " despierta y pasa a Listos en " + nombre);
             }
+        } else if (proceso.getEstado() == EstadoProceso.BLOQUEADO_SUSPENDIDO
+                && colaBloqueadosSuspendidos.getLista().eliminar(proceso)) {
+            pasarAListosSuspendidos(proceso);
         }
     }
 
@@ -350,14 +465,47 @@ public class Computador implements Clockable {
             }
             colaBloqueados.encolar(proceso);
         }
+        int suspendidos = colaBloqueadosSuspendidos.getTamanio();
+        for (int i = 0; i < suspendidos; i++) {
+            Proceso proceso = colaBloqueadosSuspendidos.desencolar();
+            if (proceso.getBloqueoRestante() > 0) {
+                proceso.setBloqueoRestante(proceso.getBloqueoRestante() - 1);
+                if (proceso.getBloqueoRestante() == 0) {
+                    pasarAListosSuspendidos(proceso);
+                    continue;
+                }
+            } else if (proceso.getSemaforoBloqueo() != null) {
+                proceso.sumarCicloBloqueadoSemaforo();
+            }
+            colaBloqueadosSuspendidos.encolar(proceso);
+        }
     }
 
-    /** Pasa un proceso de Bloqueado a Listo: borra su motivo y lo inserta en la cola de listos segun la politica. */
+    /**
+     * Pasa un proceso de Bloqueado a Listo: borra su motivo y lo inserta en la cola de listos segun la politica. Si en ese
+     * momento se esta escribiendo su memoria al swap, el proceso se queda donde esta y se anota que su evento ya ocurrio:
+     * al terminar la suspension pasara a Listo/Suspendido.
+     */
     private void desbloquear(Proceso proceso) {
+        if (proceso.isSuspendiendo()) {
+            proceso.setEventoPendiente(true);
+            colaBloqueados.encolar(proceso);
+            return;
+        }
         proceso.setMotivoBloqueo(null);
         proceso.setBloqueoRestante(-1);
         proceso.setEstado(EstadoProceso.LISTO);
         pasarAListos(proceso);
+    }
+
+    /** El evento de un Bloqueado/Suspendido ocurrio: pasa a Listo/Suspendido, esperando que haya RAM para volver. */
+    void pasarAListosSuspendidos(Proceso proceso) {
+        proceso.setMotivoBloqueo(null);
+        proceso.setBloqueoRestante(-1);
+        proceso.setEventoPendiente(false);
+        proceso.setEstado(EstadoProceso.LISTO_SUSPENDIDO);
+        colaListosSuspendidos.encolar(proceso);
+        registrarEvento(proceso.getEtiqueta() + " recibe su evento y pasa a Listo/Suspendido en " + nombre);
     }
 
     /** Entrega un proceso nuevo a este computador: queda en Nuevos con su ciclo de llegada y se intenta admitirlo. */
@@ -418,6 +566,20 @@ public class Computador implements Clockable {
         colaListos.getLista().eliminar(proceso);
         colaBloqueados.getLista().eliminar(proceso);
         colaNuevos.getLista().eliminar(proceso);
+        colaListosSuspendidos.getLista().eliminar(proceso);
+        colaBloqueadosSuspendidos.getLista().eliminar(proceso);
+
+        if (disco != null) {
+            // sus solicitudes que esperan en la cola del disco ya no tienen dueño; su memoria en el swap se libera
+            disco.cancelarDe(proceso.getId());
+            if (proceso.getBloqueSwap() >= 0) {
+                disco.liberarBloques(proceso.getBloqueSwap());
+                proceso.setBloqueSwap(-1);
+            }
+        }
+        proceso.setSuspendiendo(false);
+        proceso.setReactivando(false);
+        proceso.setEventoPendiente(false);
 
         // Solo libera si el proceso llego a ocupar RAM (los que esperaban en Nuevos no la tienen).
         ram.liberarMemoria(proceso);
@@ -429,6 +591,15 @@ public class Computador implements Clockable {
         }
 
         intentarAdmitirNuevos();
+        if (medianoPlazo != null) {
+            medianoPlazo.revisar();
+        }
+    }
+
+    /** Un proceso reactivado (ya con su memoria de vuelta en la RAM) pasa a Listos. */
+    void pasarAListosReactivado(Proceso proceso) {
+        proceso.setEstado(EstadoProceso.LISTO);
+        pasarAListos(proceso);
     }
 
     /** Inserta el proceso en la cola de listos con el orden que decide la politica. */
@@ -465,6 +636,9 @@ public class Computador implements Clockable {
         ciclosTotales++;
         procesarDespertares();
         avanzarBloqueados();
+        if (medianoPlazo != null) {
+            medianoPlazo.revisar();
+        }
 
         if (cpu.getProcesoActual() == null) {
             despacharSiguiente();
@@ -551,14 +725,17 @@ public class Computador implements Clockable {
     /** Foto (arreglo) de los procesos vivos: en CPU, nuevos, listos y bloqueados. Sirve para recorrerlos mientras se terminan procesos sin invalidar los recorridos. */
     private Proceso[] procesosVivos() {
         Proceso[] vivos = new Proceso[(cpu.getProcesoActual() == null ? 0 : 1) + colaNuevos.getTamanio()
-                + colaListos.getTamanio() + colaBloqueados.getTamanio()];
+                + colaListos.getTamanio() + colaBloqueados.getTamanio()
+                + colaListosSuspendidos.getTamanio() + colaBloqueadosSuspendidos.getTamanio()];
         int i = 0;
         if (cpu.getProcesoActual() != null) {
             vivos[i++] = cpu.getProcesoActual();
         }
         i = copiar(colaNuevos, vivos, i);
         i = copiar(colaListos, vivos, i);
-        copiar(colaBloqueados, vivos, i);
+        i = copiar(colaBloqueados, vivos, i);
+        i = copiar(colaListosSuspendidos, vivos, i);
+        copiar(colaBloqueadosSuspendidos, vivos, i);
         return vivos;
     }
 

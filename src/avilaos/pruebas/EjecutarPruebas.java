@@ -19,6 +19,10 @@ public final class EjecutarPruebas {
         PruebasPoliticas.ejecutar();
         PruebasContexto.ejecutar();
         PruebasDisco.ejecutar();
+        PruebasJson.ejecutar();
+        PruebasArchivos.ejecutar();
+        PruebasProcesosES.ejecutar();
+        PruebasSuspension.ejecutar();
         int fallidas = Verificador.resumen();
         if (fallidas > 0) {
             System.exit(1);

@@ -84,6 +84,29 @@ public class MapaBloques {
         return true;
     }
 
+    /** Asigna exactamente los bloques indicados, encadenados en ese orden (restaura un archivo guardado); false si alguno está ocupado, repetido o fuera del disco. */
+    public boolean asignarCadena(int[] bloques, int duenoId) {
+        if (bloques.length < 1 || duenoId == LIBRE) {
+            return false;
+        }
+        for (int i = 0; i < bloques.length; i++) {
+            if (bloques[i] < 0 || bloques[i] >= total || dueno[bloques[i]] != LIBRE) {
+                return false;
+            }
+            for (int j = 0; j < i; j++) {
+                if (bloques[j] == bloques[i]) {
+                    return false;
+                }
+            }
+        }
+        for (int i = 0; i < bloques.length; i++) {
+            dueno[bloques[i]] = duenoId;
+            siguiente[bloques[i]] = (i == bloques.length - 1) ? FIN_DE_CADENA : bloques[i + 1];
+        }
+        libres -= bloques.length;
+        return true;
+    }
+
     /** Libera la cadena que empieza en primero y devuelve cuántos bloques liberó. */
     public int liberar(int primero) {
         int liberados = 0;

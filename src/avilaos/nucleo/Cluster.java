@@ -3,6 +3,7 @@ package avilaos.nucleo;
 import avilaos.contratos.CriterioAsignacion;
 import avilaos.estructuras.ListaEnlazada;
 import avilaos.estructuras.Nodo;
+import avilaos.hardware.Clockable;
 import avilaos.hardware.RelojGlobal;
 import avilaos.modelo.Proceso;
 import avilaos.nucleo.balanceo.MenorCarga;
@@ -31,6 +32,8 @@ public class Cluster {
     private final ListaEnlazada<Computador> computadores = new ListaEnlazada<>();
     /** Los buffers del productor-consumidor, en el orden en que se crearon. */
     private final ListaEnlazada<BufferSO> buffers = new ListaEnlazada<>();
+    /** Otros componentes de hardware que reaccionan al reloj (el disco), cada uno en su propio hilo junto a los computadores. */
+    private final ListaEnlazada<Clockable> componentes = new ListaEnlazada<>();
     /**
      * CERROJO DEL ESTADO COMPARTIDO. Semaphore de Java con un permiso: el RelojGlobal lo mantiene tomado durante cada
      * ciclo (los hilos de los computadores corren dentro de ese ciclo) y la interfaz lo toma antes de leer o
@@ -54,6 +57,14 @@ public class Cluster {
         }
         computador.setCluster(this);
         computadores.agregarAlFinal(computador);
+    }
+
+    /** Agrega un componente que reacciona al reloj además de los computadores (por ejemplo el disco). */
+    public void agregarComponente(Clockable componente) {
+        if (componente == null) {
+            throw new IllegalArgumentException("El componente no puede ser null.");
+        }
+        componentes.agregarAlFinal(componente);
     }
 
     public int getCantidadComputadores() {
@@ -192,6 +203,11 @@ public class Cluster {
             actual.getDato().onTick(cicloGlobal);
             actual = actual.getSiguiente();
         }
+        Nodo<Clockable> componente = componentes.getCabeza();
+        while (componente != null) {
+            componente.getDato().tic(cicloGlobal);
+            componente = componente.getSiguiente();
+        }
     }
 
     /** Destino de los mensajes del log de eventos (por ejemplo la ventana). Puede ser null. */
@@ -218,6 +234,11 @@ public class Cluster {
         while (actual != null) {
             reloj.suscribir(actual.getDato());
             actual = actual.getSiguiente();
+        }
+        Nodo<Clockable> componente = componentes.getCabeza();
+        while (componente != null) {
+            reloj.suscribir(componente.getDato());
+            componente = componente.getSiguiente();
         }
         return reloj;
     }
