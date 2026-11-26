@@ -279,6 +279,21 @@ public class Disco implements Clockable {
         }
     }
 
+    /** Asigna exactamente los bloques indicados del área de archivos, encadenados en ese orden; false si no se puede. */
+    public boolean reservarCadena(int[] bloques, int duenoId) {
+        for (int b : bloques) {
+            if (b >= bloquesArchivos) {
+                return false;
+            }
+        }
+        candado.acquireUninterruptibly();
+        try {
+            return mapa.asignarCadena(bloques, duenoId);
+        } finally {
+            candado.release();
+        }
+    }
+
     /** Asigna bloques del área de intercambio para un proceso suspendido; devuelve el primero o -1 si no caben. */
     public int reservarBloquesSwap(int cantidad, int procesoId) {
         if (bloquesSwap == 0) {
