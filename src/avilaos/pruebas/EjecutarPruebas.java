@@ -22,6 +22,7 @@ public final class EjecutarPruebas {
         PruebasJson.ejecutar();
         PruebasArchivos.ejecutar();
         PruebasProcesosES.ejecutar();
+        PruebasSuspension.ejecutar();
         int fallidas = Verificador.resumen();
         if (fallidas > 0) {
             System.exit(1);
