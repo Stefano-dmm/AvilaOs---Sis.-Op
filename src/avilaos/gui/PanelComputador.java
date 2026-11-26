@@ -32,6 +32,8 @@ public class PanelComputador extends JPanel {
     private final TablaProcesos tablaListos = new TablaProcesos();
     private final TablaProcesos tablaBloqueados = new TablaProcesos();
     private final TablaProcesos tablaTerminados = new TablaProcesos();
+    private final TablaProcesos tablaListosSuspendidos = new TablaProcesos();
+    private final TablaProcesos tablaBloqueadosSuspendidos = new TablaProcesos();
     private final LogEventos log;
     private boolean actualizando;
 
@@ -72,11 +74,17 @@ public class PanelComputador extends JPanel {
         JScrollPane scrollCpu = envolver("Proceso en CPU", tablaCpu);
         scrollCpu.setPreferredSize(new Dimension(100, 85));
 
-        JPanel colas = new JPanel(new GridLayout(2, 2, 8, 8));
+        // con disco hay siete estados: se agregan las dos colas de procesos suspendidos
+        boolean conSuspension = computador.getDisco() != null;
+        JPanel colas = new JPanel(new GridLayout(conSuspension ? 3 : 2, 2, 8, 8));
         colas.add(envolver("Nuevos", tablaNuevos));
         colas.add(envolver("Listos", tablaListos));
         colas.add(envolver("Bloqueados", tablaBloqueados));
         colas.add(envolver("Terminados", tablaTerminados));
+        if (conSuspension) {
+            colas.add(envolver("Listos/Suspendidos", tablaListosSuspendidos));
+            colas.add(envolver("Bloqueados/Suspendidos", tablaBloqueadosSuspendidos));
+        }
 
         JPanel cuerpo = new JPanel(new BorderLayout(8, 8));
         cuerpo.add(scrollCpu, BorderLayout.NORTH);
@@ -104,6 +112,12 @@ public class PanelComputador extends JPanel {
             conCerrojo(() -> computador.setQuantum(q));
             log.registrar(computador.getNombre() + " cambia su quantum a " + q);
         });
+    }
+
+    /** En modo usuario el selector de política y el quantum se bloquean: solo el administrador los cambia. */
+    public void setControlesHabilitados(boolean habilitados) {
+        cmbPolitica.setEnabled(habilitados);
+        spnQuantum.setEnabled(habilitados);
     }
 
     /** Los cambios hechos desde la ventana esperan a que termine el ciclo en curso del reloj. */
@@ -144,6 +158,8 @@ public class PanelComputador extends JPanel {
             tablaListos.mostrarCola(computador.getColaListos());
             tablaBloqueados.mostrarCola(computador.getColaBloqueados());
             tablaTerminados.mostrarCola(computador.getColaTerminados());
+            tablaListosSuspendidos.mostrarCola(computador.getColaListosSuspendidos());
+            tablaBloqueadosSuspendidos.mostrarCola(computador.getColaBloqueadosSuspendidos());
         } finally {
             actualizando = false;
         }

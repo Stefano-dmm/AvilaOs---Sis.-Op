@@ -11,7 +11,7 @@ public class TablaProcesos extends JTable {
 
     private static final String[] COLUMNAS = {
         "ID", "Nombre", "PC#", "Estado", "Tipo", "Prioridad", "Memoria",
-        "Deadline", "Restante", "PC", "Motivo de bloqueo"
+        "Deadline", "Restante", "PC", "Motivo de bloqueo", "Operación", "Ruta"
     };
 
     private final ModeloProcesos modelo = new ModeloProcesos();
@@ -81,7 +81,9 @@ public class TablaProcesos extends JTable {
                 case 7 -> p.getDeadline();
                 case 8 -> p.getTiempoRestante();
                 case 9 -> p.getPc();
-                default -> p.getMotivoBloqueo() == null ? "" : p.getMotivoBloqueo();
+                case 10 -> p.getMotivoBloqueo() == null ? "" : p.getMotivoBloqueo();
+                case 11 -> p.getOperacionES() == null ? "" : p.getOperacionES();
+                default -> p.getRutaArchivo() == null ? "" : p.getRutaArchivo();
             };
         }
     }
