@@ -1,6 +1,7 @@
 package avilaos.modelo;
 
 import avilaos.contratos.ProgramaProceso;
+import avilaos.disco.OperacionES;
 import avilaos.sincronizacion.SemaforoSO;
 
 /**
@@ -55,6 +56,22 @@ public class Proceso {
     private int ciclosBloqueadoSemaforo;
     /** Ciclos acumulados en la cola de listos mientras la CPU ejecutaba a otro proceso (tiempo de espera). */
     private int ciclosEnListos;
+    /** Operación de archivo que hace un proceso de E/S (leer, crear...); null en los demás procesos. */
+    private OperacionES operacionES;
+    /** Ruta del archivo o directorio sobre el que trabaja un proceso de E/S; null en los demás procesos. */
+    private String rutaArchivo;
+    /** Usuario que pidió la operación de archivo (determina qué le está permitido); null en los demás procesos. */
+    private String usuario;
+    /** Ciclo en que se bloqueó por última vez (para elegir al que lleva más tiempo bloqueado); -1 si no está bloqueado. */
+    private int cicloBloqueo = -1;
+    /** Primer bloque de su área de intercambio mientras está suspendido; -1 si no tiene memoria en el swap. */
+    private int bloqueSwap = -1;
+    /** Verdadero mientras su suspensión (escritura al swap) está en la cola del disco: sigue en la RAM y bloqueado. */
+    private boolean suspendiendo;
+    /** Verdadero mientras su reactivación (lectura del swap) está en la cola del disco: ya tiene RAM reservada. */
+    private boolean reactivando;
+    /** Verdadero si su evento ocurrió mientras se escribía al swap: al terminar la suspensión pasa a Listo/Suspendido. */
+    private boolean eventoPendiente;
 
     /** Crea un proceso nuevo con el estado NUEVO; valida que el nombre no este vacio y que los numeros no sean negativos. */
     public Proceso(String nombre, TipoProceso tipo, int prioridad,
@@ -228,6 +245,83 @@ public class Proceso {
     /** Suma un ciclo de espera en la cola de listos (lo llama el computador, una vez por ciclo, por cada proceso listo). */
     public void sumarCicloEnListos() {
         ciclosEnListos++;
+    }
+
+    /** Operación de archivo del proceso de E/S; null si no es un proceso de archivos. */
+    public OperacionES getOperacionES() {
+        return operacionES;
+    }
+
+    public void setOperacionES(OperacionES operacionES) {
+        this.operacionES = operacionES;
+    }
+
+    /** Ruta del archivo o directorio sobre el que trabaja; null si no es un proceso de archivos. */
+    public String getRutaArchivo() {
+        return rutaArchivo;
+    }
+
+    public void setRutaArchivo(String rutaArchivo) {
+        this.rutaArchivo = rutaArchivo;
+    }
+
+    /** Usuario que pidió la operación de archivo. */
+    public String getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(String usuario) {
+        this.usuario = usuario;
+    }
+
+    /** Ciclo en que se bloqueó por última vez; -1 si no está bloqueado. */
+    public int getCicloBloqueo() {
+        return cicloBloqueo;
+    }
+
+    public void setCicloBloqueo(int cicloBloqueo) {
+        this.cicloBloqueo = cicloBloqueo;
+    }
+
+    /** Primer bloque de su área de intercambio; -1 si no está en el swap. */
+    public int getBloqueSwap() {
+        return bloqueSwap;
+    }
+
+    public void setBloqueSwap(int bloqueSwap) {
+        this.bloqueSwap = bloqueSwap;
+    }
+
+    /** Verdadero mientras su escritura al swap está en la cola del disco. */
+    public boolean isSuspendiendo() {
+        return suspendiendo;
+    }
+
+    public void setSuspendiendo(boolean suspendiendo) {
+        this.suspendiendo = suspendiendo;
+    }
+
+    /** Verdadero mientras su lectura del swap está en la cola del disco. */
+    public boolean isReactivando() {
+        return reactivando;
+    }
+
+    public void setReactivando(boolean reactivando) {
+        this.reactivando = reactivando;
+    }
+
+    /** Verdadero si su evento ocurrió mientras se estaba suspendiendo. */
+    public boolean isEventoPendiente() {
+        return eventoPendiente;
+    }
+
+    public void setEventoPendiente(boolean eventoPendiente) {
+        this.eventoPendiente = eventoPendiente;
+    }
+
+    /** Verdadero si está en alguno de los dos estados suspendidos. */
+    public boolean estaSuspendido() {
+        return estado == EstadoProceso.LISTO_SUSPENDIDO || estado == EstadoProceso.BLOQUEADO_SUSPENDIDO;
     }
 
     /** Semaforo en cuya cola espera el proceso; null si no esta bloqueado en ninguno. */

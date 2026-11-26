@@ -116,6 +116,39 @@ public class Disco implements Clockable {
         }
     }
 
+    /**
+     * Saca de la cola las solicitudes que esperan de un proceso (porque terminó por deadline) y las devuelve. La que ya
+     * se está atendiendo no se cancela: el disco la termina y quien la recibe decide qué hacer.
+     */
+    public SolicitudES[] cancelarDe(int procesoId) {
+        candado.acquireUninterruptibly();
+        try {
+            int cuenta = 0;
+            Nodo<SolicitudES> actual = cola.getLista().getCabeza();
+            while (actual != null) {
+                if (actual.getDato().getProcesoId() == procesoId) {
+                    cuenta++;
+                }
+                actual = actual.getSiguiente();
+            }
+            SolicitudES[] cancelladas = new SolicitudES[cuenta];
+            int i = 0;
+            actual = cola.getLista().getCabeza();
+            while (actual != null) {
+                if (actual.getDato().getProcesoId() == procesoId) {
+                    cancelladas[i++] = actual.getDato();
+                }
+                actual = actual.getSiguiente();
+            }
+            for (SolicitudES s : cancelladas) {
+                cola.getLista().eliminar(s);
+            }
+            return cancelladas;
+        } finally {
+            candado.release();
+        }
+    }
+
     /** Cambia la política de planificación en ejecución; la solicitud que ya se está atendiendo no cambia. */
     public void setPolitica(PoliticaDisco nombre) {
         if (nombre == null) {

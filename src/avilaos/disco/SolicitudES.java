@@ -28,6 +28,8 @@ public class SolicitudES {
     private final int cicloLlegada;
     /** Ciclo en que el disco empezó a atenderla; -1 mientras espera. */
     private int cicloInicio = -1;
+    /** Dato que el sistema operativo asocia a la solicitud para saber qué hacer cuando termina; el disco no lo usa. */
+    private Object contexto;
 
     /** Crea la solicitud; el bloque no puede ser negativo y se transfiere al menos un bloque. */
     public SolicitudES(OperacionES operacion, int bloque, int bloquesATransferir, int procesoId,
@@ -86,6 +88,14 @@ public class SolicitudES {
 
     public void setCicloInicio(int cicloInicio) {
         this.cicloInicio = cicloInicio;
+    }
+
+    public Object getContexto() {
+        return contexto;
+    }
+
+    public void setContexto(Object contexto) {
+        this.contexto = contexto;
     }
 
     /** Reinicia la numeración (se usa al construir un sistema nuevo y en las pruebas). */
