@@ -50,7 +50,8 @@ public class GraficoDesplazamiento extends JPanel {
         while (techo < maximo) {
             techo += paso;
         }
-        return Math.max(techo, 1);
+        // Mínimo 5 para que las 5 divisiones del eje sean enteras distintas aunque todavía no haya datos.
+        return Math.max(techo, 5);
     }
 
     @Override
